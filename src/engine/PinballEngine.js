@@ -12,37 +12,66 @@ const {
   Constraint,
 } = Matter;
 
-// Game settings based on player class
+// Game settings based on player class (from ENS yieldball.class)
 export const PLAYER_CLASSES = {
   whale: {
-    flipperWidth: 150,
-    ballSpeed: 0.8,
-    multiplier: 1,
-    description: 'Whale Mode: Large flippers, slow ball',
+    flipperWidth: 160,
+    ballDensity: 2.0,
+    ballSpeed: 0.7,
+    yieldMultiplier: 0.5,
+    flipperCooldown: 100,
+    description: 'Whale Mode: Large flippers, heavy ball, 0.5x yield',
   },
   degen: {
-    flipperWidth: 40,
+    flipperWidth: 50,
+    ballDensity: 0.5,
     ballSpeed: 1.5,
-    multiplier: 2,
-    description: 'Degen Mode: Small flippers, fast ball, 2x multiplier!',
+    yieldMultiplier: 2.0,
+    flipperCooldown: 100,
+    description: 'Degen Mode: Small flippers, light ball, 2x yield!',
+  },
+  sniper: {
+    flipperWidth: 100,
+    ballDensity: 0.8,
+    ballSpeed: 1.8,
+    yieldMultiplier: 1.2,
+    flipperCooldown: 0,
+    description: 'Sniper Mode: Fast ball, no cooldown, 1.2x yield',
   },
   default: {
     flipperWidth: 100,
-    ballSpeed: 1,
-    multiplier: 1,
+    ballDensity: 1.0,
+    ballSpeed: 1.0,
+    yieldMultiplier: 1.0,
+    flipperCooldown: 100,
     description: 'Standard Mode',
   },
 };
 
+// Generate cryptographic hash for state channel simulation
+function generateStateHash(data) {
+  const timestamp = Date.now();
+  const payload = JSON.stringify({ ...data, timestamp, nonce: Math.random() });
+  // Simulate a keccak256-like hash
+  let hash = '0x';
+  for (let i = 0; i < 64; i++) {
+    hash += Math.floor(Math.random() * 16).toString(16);
+  }
+  return { hash, timestamp, payload };
+}
+
 export class PinballEngine {
   constructor(container, options = {}) {
     this.container = container;
-    this.width = options.width || 500;
-    this.height = options.height || 800;
+    // Canvas size 400x600 as per spec
+    this.width = options.width || 400;
+    this.height = options.height || 600;
     this.playerClass = options.playerClass || 'default';
     this.onBumperHit = options.onBumperHit || (() => {});
+    this.onFlashLoanRamp = options.onFlashLoanRamp || (() => {});
     this.onDrain = options.onDrain || (() => {});
     this.onScoreUpdate = options.onScoreUpdate || (() => {});
+    this.onStateUpdate = options.onStateUpdate || (() => {});
     
     this.settings = PLAYER_CLASSES[this.playerClass];
     this.score = 0;
@@ -51,9 +80,32 @@ export class PinballEngine {
     this.leftFlipper = null;
     this.rightFlipper = null;
     this.bumpers = [];
+    this.flashLoanRamp = null;
     this.ballTrail = [];
+    this.lastFlipperUse = { left: 0, right: 0 };
     
     this.init();
+  }
+
+  // Sign state update - simulates Yellow Network state channel
+  signStateUpdate(action, data) {
+    const stateData = {
+      action,
+      ...data,
+      score: this.score,
+      playerClass: this.playerClass,
+    };
+    
+    const { hash, timestamp, payload } = generateStateHash(stateData);
+    
+    console.log(`%c🔐 STATE CHANNEL UPDATE`, 'color: #fbbf24; font-weight: bold; font-size: 14px;');
+    console.log(`%c   Action: ${action}`, 'color: #00f5ff;');
+    console.log(`%c   Hash: ${hash}`, 'color: #8b5cf6;');
+    console.log(`%c   Timestamp: ${timestamp}`, 'color: #22c55e;');
+    
+    this.onStateUpdate({ action, hash, timestamp, data: stateData });
+    
+    return hash;
   }
 
   init() {
@@ -101,7 +153,7 @@ export class PinballEngine {
       },
     };
 
-    // Create walls
+    // Create walls for 400x600 canvas
     const walls = [
       // Left wall
       Bodies.rectangle(10, this.height / 2, 20, this.height, wallOptions),
@@ -109,26 +161,26 @@ export class PinballEngine {
       Bodies.rectangle(this.width - 10, this.height / 2, 20, this.height, wallOptions),
       // Top wall
       Bodies.rectangle(this.width / 2, 10, this.width, 20, wallOptions),
-      // Bottom left slope - adjusted to guide ball to center
-      Bodies.rectangle(100, this.height - 80, 180, 20, {
+      // Bottom left slope - guide ball to center
+      Bodies.rectangle(70, this.height - 70, 120, 18, {
         ...wallOptions,
-        angle: Math.PI * 0.2,
+        angle: Math.PI * 0.22,
       }),
-      // Bottom right slope - adjusted to guide ball to center
-      Bodies.rectangle(this.width - 140, this.height - 80, 180, 20, {
+      // Bottom right slope - guide ball to center  
+      Bodies.rectangle(this.width - 100, this.height - 70, 120, 18, {
         ...wallOptions,
-        angle: -Math.PI * 0.2,
+        angle: -Math.PI * 0.22,
       }),
       // Launch lane right wall
-      Bodies.rectangle(this.width - 25, this.height - 300, 10, 500, wallOptions),
+      Bodies.rectangle(this.width - 20, this.height - 250, 10, 400, wallOptions),
       // Launch lane left wall
-      Bodies.rectangle(this.width - 55, this.height - 300, 10, 400, wallOptions),
+      Bodies.rectangle(this.width - 45, this.height - 250, 10, 350, wallOptions),
       // Launch lane stopper (ball rests here)
-      Bodies.rectangle(this.width - 40, this.height - 80, 40, 10, wallOptions),
+      Bodies.rectangle(this.width - 32, this.height - 70, 35, 10, wallOptions),
     ];
 
     // Create drain sensor (invisible area at bottom center)
-    this.drain = Bodies.rectangle(this.width / 2 - 20, this.height + 30, 200, 40, {
+    this.drain = Bodies.rectangle(this.width / 2, this.height + 25, 180, 40, {
       isStatic: true,
       isSensor: true,
       label: 'drain',
@@ -137,18 +189,25 @@ export class PinballEngine {
       },
     });
 
-    // Launch lane
-    const launchLane = [
-      Bodies.rectangle(this.width - 35, this.height - 200, 10, 400, wallOptions),
-    ];
+    // Flash Loan Ramp sensor at the top (special bonus area)
+    this.flashLoanRamp = Bodies.rectangle(this.width / 2, 60, 120, 40, {
+      isStatic: true,
+      isSensor: true,
+      label: 'flashLoanRamp',
+      render: {
+        fillStyle: 'rgba(34, 197, 94, 0.3)',
+        strokeStyle: '#22c55e',
+        lineWidth: 2,
+      },
+    });
 
-    Composite.add(this.engine.world, [...walls, ...launchLane, this.drain]);
+    Composite.add(this.engine.world, [...walls, this.drain, this.flashLoanRamp]);
   }
 
   createFlippers() {
     const flipperWidth = this.settings.flipperWidth;
-    const flipperHeight = 15;
-    const flipperY = this.height - 100;
+    const flipperHeight = 14;
+    const flipperY = this.height - 85;
     
     const flipperOptions = {
       render: {
@@ -156,13 +215,13 @@ export class PinballEngine {
         strokeStyle: '#00f5ff',
         lineWidth: 2,
       },
-      chamfer: { radius: 7 },
+      chamfer: { radius: 6 },
     };
 
-    // Left flipper
-    const leftPivotX = 120;
+    // Left flipper - adjusted for 400px width
+    const leftPivotX = 80;
     this.leftFlipper = Bodies.rectangle(
-      leftPivotX + flipperWidth / 2 - 20,
+      leftPivotX + flipperWidth / 2 - 15,
       flipperY,
       flipperWidth,
       flipperHeight,
@@ -176,17 +235,17 @@ export class PinballEngine {
 
     const leftConstraint = Constraint.create({
       bodyA: this.leftFlipper,
-      pointA: { x: -flipperWidth / 2 + 20, y: 0 },
+      pointA: { x: -flipperWidth / 2 + 15, y: 0 },
       bodyB: leftPivot,
       pointB: { x: 0, y: 0 },
       stiffness: 1,
       length: 0,
     });
 
-    // Right flipper
-    const rightPivotX = this.width - 120;
+    // Right flipper - adjusted for 400px width
+    const rightPivotX = this.width - 80;
     this.rightFlipper = Bodies.rectangle(
-      rightPivotX - flipperWidth / 2 + 20,
+      rightPivotX - flipperWidth / 2 + 15,
       flipperY,
       flipperWidth,
       flipperHeight,
@@ -200,7 +259,7 @@ export class PinballEngine {
 
     const rightConstraint = Constraint.create({
       bodyA: this.rightFlipper,
-      pointA: { x: flipperWidth / 2 - 20, y: 0 },
+      pointA: { x: flipperWidth / 2 - 15, y: 0 },
       bodyB: rightPivot,
       pointB: { x: 0, y: 0 },
       stiffness: 1,
@@ -222,14 +281,15 @@ export class PinballEngine {
   }
 
   createBumpers() {
+    // Bumper positions adjusted for 400x600 canvas
     const bumperPositions = [
-      { x: 150, y: 200, color: '#ff006e' },
-      { x: 250, y: 280, color: '#00f5ff' },
-      { x: 350, y: 200, color: '#ff006e' },
+      { x: 100, y: 180, color: '#ff006e' },  // Left bumper - neon pink
+      { x: 200, y: 250, color: '#00f5ff' },  // Center bumper - neon cyan
+      { x: 300, y: 180, color: '#ff006e' },  // Right bumper - neon pink
     ];
 
     this.bumpers = bumperPositions.map((pos, index) => {
-      const bumper = Bodies.circle(pos.x, pos.y, 35, {
+      const bumper = Bodies.circle(pos.x, pos.y, 28, {
         isStatic: true,
         restitution: 1.5,
         label: `bumper-${index}`,
@@ -241,6 +301,7 @@ export class PinballEngine {
       });
       bumper.bumperColor = pos.color;
       bumper.isGlowing = false;
+      bumper.glowIntensity = 0;
       return bumper;
     });
 
@@ -249,14 +310,17 @@ export class PinballEngine {
 
   createBall() {
     // Ball starts in launch lane, resting on stopper
-    const ballX = this.width - 40;
-    const ballY = this.height - 110;
+    const ballX = this.width - 32;
+    const ballY = this.height - 95;
 
-    this.ball = Bodies.circle(ballX, ballY, 15, {
+    // Use ball density from class settings
+    const ballDensity = this.settings.ballDensity * 0.002;
+
+    this.ball = Bodies.circle(ballX, ballY, 12, {
       restitution: 0.6,
       friction: 0.001,
       frictionAir: 0.001,
-      density: 0.002,
+      density: ballDensity,
       label: 'ball',
       render: {
         fillStyle: '#ff006e',
@@ -290,6 +354,11 @@ export class PinballEngine {
           }
         });
 
+        // Check for Flash Loan Ramp hit
+        if (labels.includes('flashLoanRamp') && labels.includes('ball')) {
+          this.handleFlashLoanRamp();
+        }
+
         // Check for drain (only if enabled and ball was launched)
         if (labels.includes('drain') && labels.includes('ball') && this.drainEnabled && this.ballLaunched) {
           this.handleDrain();
@@ -309,27 +378,55 @@ export class PinballEngine {
   }
 
   handleBumperHit(bumper, index) {
-    const points = 100 * this.settings.multiplier;
+    const basePoints = 100;
+    const points = basePoints * this.settings.yieldMultiplier;
     this.score += points;
     
     // Trigger glow effect
     bumper.isGlowing = true;
+    bumper.glowIntensity = 1;
     bumper.render.strokeStyle = '#ffff00';
     bumper.render.lineWidth = 8;
     
     setTimeout(() => {
       bumper.isGlowing = false;
+      bumper.glowIntensity = 0;
       bumper.render.strokeStyle = '#ffffff';
       bumper.render.lineWidth = 3;
     }, 200);
 
-    // State channel simulation
-    console.log(`%c🔐 Signing State Update... Bumper ${index + 1} hit! +${points} points`, 
-      'color: #00f5ff; font-weight: bold; font-size: 14px;');
-    console.log(`%c📡 Yellow Network: State channel update pending...`, 
-      'color: #fbbf24; font-size: 12px;');
+    // Sign state channel update with cryptographic hash
+    this.signStateUpdate('BUMPER_HIT', {
+      bumperIndex: index,
+      points,
+      yieldMultiplier: this.settings.yieldMultiplier,
+    });
 
-    this.onBumperHit(index, points);
+    this.onBumperHit(index, points, this.settings.yieldMultiplier);
+    this.onScoreUpdate(this.score);
+  }
+
+  handleFlashLoanRamp() {
+    // Flash Loan Ramp gives big bonus!
+    const flashLoanBonus = 500 * this.settings.yieldMultiplier;
+    this.score += flashLoanBonus;
+    
+    console.log(`%c⚡ FLASH LOAN RAMP! +${flashLoanBonus} points!`, 
+      'color: #22c55e; font-weight: bold; font-size: 16px;');
+    
+    // Sign state channel update
+    this.signStateUpdate('FLASH_LOAN_RAMP', {
+      bonus: flashLoanBonus,
+      yieldMultiplier: this.settings.yieldMultiplier,
+    });
+
+    // Visual feedback for ramp
+    this.flashLoanRamp.render.fillStyle = 'rgba(34, 197, 94, 0.8)';
+    setTimeout(() => {
+      this.flashLoanRamp.render.fillStyle = 'rgba(34, 197, 94, 0.3)';
+    }, 300);
+
+    this.onFlashLoanRamp(flashLoanBonus);
     this.onScoreUpdate(this.score);
   }
 
@@ -411,14 +508,23 @@ export class PinballEngine {
     this.keyDownHandler = (e) => {
       if (this.isGameOver) return;
       
-      // Left flipper: A or Left Arrow
+      const now = Date.now();
+      const cooldown = this.settings.flipperCooldown;
+      
+      // Left flipper: A or Left Arrow (with cooldown check)
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
-        Body.setAngularVelocity(this.leftFlipper, -0.4);
+        if (now - this.lastFlipperUse.left >= cooldown) {
+          Body.setAngularVelocity(this.leftFlipper, -0.4);
+          this.lastFlipperUse.left = now;
+        }
       }
       
-      // Right flipper: D or Right Arrow
+      // Right flipper: D or Right Arrow (with cooldown check)
       if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
-        Body.setAngularVelocity(this.rightFlipper, 0.4);
+        if (now - this.lastFlipperUse.right >= cooldown) {
+          Body.setAngularVelocity(this.rightFlipper, 0.4);
+          this.lastFlipperUse.right = now;
+        }
       }
 
       // Launch ball: Space
@@ -482,9 +588,10 @@ export class PinballEngine {
     this.ballTrail = [];
     this.ballLaunched = false;
     this.drainEnabled = false;
+    this.lastFlipperUse = { left: 0, right: 0 };
     
-    // Reset ball position to launch lane
-    Body.setPosition(this.ball, { x: this.width - 40, y: this.height - 110 });
+    // Reset ball position to launch lane (400x600 canvas)
+    Body.setPosition(this.ball, { x: this.width - 32, y: this.height - 95 });
     Body.setVelocity(this.ball, { x: 0, y: 0 });
     Body.setAngularVelocity(this.ball, 0);
     Body.setStatic(this.ball, true);
