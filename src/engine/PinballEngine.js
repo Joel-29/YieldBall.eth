@@ -109,20 +109,26 @@ export class PinballEngine {
       Bodies.rectangle(this.width - 10, this.height / 2, 20, this.height, wallOptions),
       // Top wall
       Bodies.rectangle(this.width / 2, 10, this.width, 20, wallOptions),
-      // Bottom left slope
-      Bodies.rectangle(80, this.height - 60, 150, 20, {
+      // Bottom left slope - adjusted to guide ball to center
+      Bodies.rectangle(100, this.height - 80, 180, 20, {
         ...wallOptions,
-        angle: Math.PI * 0.15,
+        angle: Math.PI * 0.2,
       }),
-      // Bottom right slope
-      Bodies.rectangle(this.width - 80, this.height - 60, 150, 20, {
+      // Bottom right slope - adjusted to guide ball to center
+      Bodies.rectangle(this.width - 140, this.height - 80, 180, 20, {
         ...wallOptions,
-        angle: -Math.PI * 0.15,
+        angle: -Math.PI * 0.2,
       }),
+      // Launch lane right wall
+      Bodies.rectangle(this.width - 25, this.height - 300, 10, 500, wallOptions),
+      // Launch lane left wall
+      Bodies.rectangle(this.width - 55, this.height - 300, 10, 400, wallOptions),
+      // Launch lane stopper (ball rests here)
+      Bodies.rectangle(this.width - 40, this.height - 80, 40, 10, wallOptions),
     ];
 
-    // Create drain sensor (invisible area at bottom)
-    this.drain = Bodies.rectangle(this.width / 2, this.height + 20, this.width - 100, 40, {
+    // Create drain sensor (invisible area at bottom center)
+    this.drain = Bodies.rectangle(this.width / 2 - 20, this.height + 30, 200, 40, {
       isStatic: true,
       isSensor: true,
       label: 'drain',
@@ -242,8 +248,9 @@ export class PinballEngine {
   }
 
   createBall() {
-    const ballX = this.width - 35;
-    const ballY = this.height - 50;
+    // Ball starts in launch lane, resting on stopper
+    const ballX = this.width - 40;
+    const ballY = this.height - 110;
 
     this.ball = Bodies.circle(ballX, ballY, 15, {
       restitution: 0.6,
@@ -258,10 +265,20 @@ export class PinballEngine {
       },
     });
 
+    // Make ball static initially until launched
+    Body.setStatic(this.ball, true);
+    this.ballLaunched = false;
+
     Composite.add(this.engine.world, this.ball);
   }
 
   setupCollisionEvents() {
+    // Delay drain detection to prevent false triggers at start
+    this.drainEnabled = false;
+    setTimeout(() => {
+      this.drainEnabled = true;
+    }, 2000);
+
     Events.on(this.engine, 'collisionStart', (event) => {
       event.pairs.forEach((pair) => {
         const labels = [pair.bodyA.label, pair.bodyB.label];
@@ -273,8 +290,8 @@ export class PinballEngine {
           }
         });
 
-        // Check for drain
-        if (labels.includes('drain') && labels.includes('ball')) {
+        // Check for drain (only if enabled and ball was launched)
+        if (labels.includes('drain') && labels.includes('ball') && this.drainEnabled && this.ballLaunched) {
           this.handleDrain();
         }
       });
@@ -429,11 +446,18 @@ export class PinballEngine {
   launchBall() {
     if (!this.ball || this.isGameOver) return;
     
-    const launchForce = -0.025 * this.settings.ballSpeed;
-    Body.applyForce(this.ball, this.ball.position, { x: -0.002, y: launchForce });
-    
-    console.log(`%c🚀 Ball launched! Speed multiplier: ${this.settings.ballSpeed}x`, 
-      'color: #22c55e; font-weight: bold;');
+    // If ball hasn't been launched yet, make it dynamic and launch
+    if (!this.ballLaunched) {
+      Body.setStatic(this.ball, false);
+      this.ballLaunched = true;
+      
+      // Strong upward launch force
+      const launchForce = -0.035 * this.settings.ballSpeed;
+      Body.setVelocity(this.ball, { x: -2, y: -15 * this.settings.ballSpeed });
+      
+      console.log(`%c🚀 Ball launched! Speed multiplier: ${this.settings.ballSpeed}x`, 
+        'color: #22c55e; font-weight: bold;');
+    }
   }
 
   flipLeft() {
@@ -456,11 +480,19 @@ export class PinballEngine {
     this.isGameOver = false;
     this.score = 0;
     this.ballTrail = [];
+    this.ballLaunched = false;
+    this.drainEnabled = false;
     
-    // Reset ball position
-    Body.setPosition(this.ball, { x: this.width - 35, y: this.height - 50 });
+    // Reset ball position to launch lane
+    Body.setPosition(this.ball, { x: this.width - 40, y: this.height - 110 });
     Body.setVelocity(this.ball, { x: 0, y: 0 });
     Body.setAngularVelocity(this.ball, 0);
+    Body.setStatic(this.ball, true);
+    
+    // Re-enable drain after delay
+    setTimeout(() => {
+      this.drainEnabled = true;
+    }, 2000);
     
     this.onScoreUpdate(0);
   }

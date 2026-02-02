@@ -3,9 +3,17 @@ import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { http } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
 
+// Get project ID from environment variable
+// Create a .env file with: VITE_WALLETCONNECT_PROJECT_ID=your_project_id
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
+if (!projectId) {
+  console.warn('Missing VITE_WALLETCONNECT_PROJECT_ID in .env file');
+}
+
 export const config = getDefaultConfig({
   appName: 'YieldBall.eth',
-  projectId: 'yieldball-demo-project', // Replace with your WalletConnect project ID
+  projectId: projectId || '',
   chains: [mainnet, sepolia],
   transports: {
     [mainnet.id]: http(),
