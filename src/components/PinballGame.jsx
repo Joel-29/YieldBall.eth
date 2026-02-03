@@ -18,6 +18,7 @@ export function PinballGame({
 }) {
   const containerRef = useRef(null);
   const gameEngineRef = useRef(null);
+  const touchAreaRef = useRef(null);
 
   const handleBumperHit = useCallback((bumperIndex, points, multiplier) => {
     if (onBumperHit) {
@@ -48,6 +49,35 @@ export function PinballGame({
       onStateUpdate(stateData);
     }
   }, [onStateUpdate]);
+
+  // Mobile touch handler - tap left/right half of screen
+  const handleTouch = useCallback((e) => {
+    if (!gameEngineRef.current || !touchAreaRef.current) return;
+    
+    const rect = touchAreaRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const midpoint = rect.width / 2;
+    
+    if (x < midpoint) {
+      gameEngineRef.current.flipLeft();
+    } else {
+      gameEngineRef.current.flipRight();
+    }
+  }, []);
+
+  // Double tap to launch
+  const lastTapRef = useRef(0);
+  const handleTouchEnd = useCallback((e) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap - launch ball
+      if (gameEngineRef.current) {
+        gameEngineRef.current.launchBall();
+      }
+    }
+    lastTapRef.current = now;
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || !isPlaying) return;
@@ -85,8 +115,29 @@ export function PinballGame({
     return null;
   }
 
+  // Get class display info
+  const classInfo = {
+    whale: { label: '🐋 Whale Mode', color: 'neon-cyan', desc: '1.5x Flippers' },
+    degen: { label: '🔥 Degen Mode', color: 'neon-pink', desc: '2x Yield!' },
+    sniper: { label: '🎯 Sniper Mode', color: 'neon-green', desc: '1.2x Yield' },
+    default: { label: '⚡ Standard Mode', color: 'neon-purple', desc: '1x Yield' },
+  };
+  const currentClass = classInfo[playerClass] || classInfo.default;
+
   return (
     <div className="relative">
+      {/* ENS Class Badge - Top Center */}
+      <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-20">
+        <div className={`px-4 py-2 rounded-full border-2 border-${currentClass.color}/60 bg-cyber-darker/90 backdrop-blur-sm`}>
+          <span className={`text-${currentClass.color} font-arcade text-xs`}>
+            {currentClass.label}
+          </span>
+          <span className="text-gray-400 font-cyber text-xs ml-2">
+            {currentClass.desc}
+          </span>
+        </div>
+      </div>
+
       {/* Game HUD */}
       <GameHUD 
         score={score}
@@ -98,14 +149,17 @@ export function PinballGame({
       />
       
       {/* Pinball Canvas Container - 400x600 as per spec */}
+      {/* Touch area for mobile - tap left/right to flip, double-tap to launch */}
       <div 
-        ref={containerRef}
-        className="relative rounded-xl overflow-hidden border-4 border-neon-purple/50 shadow-neon-purple"
+        ref={(el) => { containerRef.current = el; touchAreaRef.current = el; }}
+        className="relative rounded-xl overflow-hidden border-4 border-neon-purple/50 shadow-neon-purple touch-none"
         style={{ 
           width: 400, 
           height: 600,
           background: 'linear-gradient(180deg, #020617 0%, #0f172a 100%)'
         }}
+        onTouchStart={handleTouch}
+        onTouchEnd={handleTouchEnd}
       />
       
       {/* Controls Hint */}

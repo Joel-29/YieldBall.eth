@@ -18,13 +18,15 @@ export function useGameState() {
     playerClass: 'default',
     yieldMultiplier: 1,
     sessionStartTime: null,
+    sessionDuration: 0,
     stateUpdates: [],
   });
 
   const animationFrameRef = useRef(null);
   const lastYieldTimeRef = useRef(0);
+  const sessionStartRef = useRef(null);
 
-  // Yield accumulator using requestAnimationFrame - $0.00001 per 500ms while playing
+  // Yield accumulator using requestAnimationFrame - $0.0001 per second while playing
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isGameOver) {
       if (animationFrameRef.current) {
@@ -33,27 +35,29 @@ export function useGameState() {
       return;
     }
 
-    const yieldPerInterval = 0.00001; // $0.00001 per 500ms
-    const intervalMs = 500;
+    const yieldPerSecond = 0.0001; // $0.0001 per second as per spec
 
     const updateYield = (timestamp) => {
       if (!lastYieldTimeRef.current) {
         lastYieldTimeRef.current = timestamp;
+        sessionStartRef.current = timestamp;
       }
 
       const elapsed = timestamp - lastYieldTimeRef.current;
       
-      if (elapsed >= intervalMs) {
-        const intervals = Math.floor(elapsed / intervalMs);
-        const yieldIncrease = yieldPerInterval * intervals * gameState.yieldMultiplier;
+      // Update every 100ms for smooth display
+      if (elapsed >= 100) {
+        const seconds = elapsed / 1000;
+        const yieldIncrease = yieldPerSecond * seconds * gameState.yieldMultiplier;
         
         setGameState(prev => ({
           ...prev,
           liveYield: prev.liveYield + yieldIncrease,
           yieldEarned: prev.yieldEarned + yieldIncrease,
+          sessionDuration: sessionStartRef.current ? (timestamp - sessionStartRef.current) / 1000 : 0,
         }));
         
-        lastYieldTimeRef.current = timestamp - (elapsed % intervalMs);
+        lastYieldTimeRef.current = timestamp;
       }
 
       animationFrameRef.current = requestAnimationFrame(updateYield);
@@ -79,6 +83,7 @@ export function useGameState() {
       'color: #8b5cf6; font-size: 12px;');
     
     lastYieldTimeRef.current = 0;
+    sessionStartRef.current = null;
     
     setGameState(prev => ({
       ...prev,
@@ -93,6 +98,7 @@ export function useGameState() {
       playerClass,
       yieldMultiplier: classSettings.yieldMultiplier,
       sessionStartTime: Date.now(),
+      sessionDuration: 0,
       stateUpdates: [],
     }));
   }, []);
@@ -105,8 +111,8 @@ export function useGameState() {
   }, []);
 
   const recordBumperHit = useCallback((bumperIndex, points, yieldMultiplier = 1) => {
-    // Yield bonus for bumper hits based on class multiplier
-    const yieldBonus = 0.0001 * yieldMultiplier;
+    // Yield bonus for bumper hits: $0.005 instantly as per spec
+    const yieldBonus = 0.005 * yieldMultiplier;
     
     setGameState(prev => ({
       ...prev,
@@ -170,6 +176,7 @@ export function useGameState() {
       playerClass: 'default',
       yieldMultiplier: 1,
       sessionStartTime: null,
+      sessionDuration: 0,
       stateUpdates: [],
     });
   }, [gameState.principal, gameState.yieldEarned]);

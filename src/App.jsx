@@ -113,18 +113,18 @@ function App() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-cyber-darker/30 border border-gray-700 rounded-lg p-4 text-center">
                   <p className="text-gray-500 text-xs font-cyber mb-2">Default</p>
-                  <p className="text-white font-cyber text-sm">100px Flippers</p>
+                  <p className="text-white font-cyber text-sm">Standard Flippers</p>
                   <p className="text-gray-400 text-xs font-cyber">1.0x yield</p>
                 </div>
                 <div className="bg-neon-cyan/10 border border-neon-cyan/30 rounded-lg p-4 text-center">
                   <p className="text-neon-cyan text-xs font-cyber mb-2">🐋 Whale</p>
-                  <p className="text-white font-cyber text-sm">160px Flippers</p>
-                  <p className="text-gray-400 text-xs font-cyber">Heavy ball • 0.5x yield</p>
+                  <p className="text-white font-cyber text-sm">1.5x Flippers</p>
+                  <p className="text-gray-400 text-xs font-cyber">Slow ball • Easy mode</p>
                 </div>
                 <div className="bg-neon-pink/10 border border-neon-pink/30 rounded-lg p-4 text-center">
                   <p className="text-neon-pink text-xs font-cyber mb-2">🔥 Degen</p>
-                  <p className="text-white font-cyber text-sm">50px Flippers</p>
-                  <p className="text-gray-400 text-xs font-cyber">Light ball • 2.0x yield</p>
+                  <p className="text-white font-cyber text-sm">0.5x Flippers</p>
+                  <p className="text-gray-400 text-xs font-cyber">Fast ball • 2.0x yield!</p>
                 </div>
                 <div className="bg-neon-green/10 border border-neon-green/30 rounded-lg p-4 text-center">
                   <p className="text-neon-green text-xs font-cyber mb-2">🎯 Sniper</p>
@@ -135,8 +135,8 @@ function App() {
             </div>
           </div>
         ) : (
-          // Game Screen
-          <div className="flex flex-col items-center">
+          // Game Screen - prevent scrolling during game
+          <div className="flex flex-col items-center select-none" style={{ touchAction: 'none' }}>
             <div className="mb-4 text-center">
               <h2 className="font-arcade text-xl">
                 <NeonText color="pink">GAME</NeonText>
@@ -174,6 +174,7 @@ function App() {
         score={gameState.score}
         bumperHits={gameState.bumperHits}
         flashLoanHits={gameState.flashLoanHits}
+        sessionDuration={gameState.sessionDuration}
         onWithdraw={handleWithdraw}
       />
 

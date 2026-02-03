@@ -125,7 +125,7 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
           ) : isDeposited ? (
             'Already Deposited'
           ) : (
-            '💰 Deposit 100 USDC'
+            '🎮 Insert Coin (100 USDC)'
           )}
         </NeonButton>
       )}

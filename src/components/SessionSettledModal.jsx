@@ -8,38 +8,44 @@ export function SessionSettledModal({
   score, 
   bumperHits,
   flashLoanHits = 0,
+  sessionDuration = 0,
   onWithdraw 
 }) {
   if (!isOpen) return null;
 
   const totalAmount = principal + yieldEarned;
+  const durationSeconds = Math.floor(sessionDuration);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop with blur */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
       
       {/* Glassmorphism Modal */}
       <div className="relative w-full max-w-md">
         {/* Glow effect behind modal */}
-        <div className="absolute -inset-1 bg-gradient-to-r from-neon-pink via-neon-purple to-neon-cyan rounded-3xl blur-xl opacity-50 animate-pulse" />
+        <div className="absolute -inset-2 bg-gradient-to-r from-neon-pink via-neon-purple to-neon-cyan rounded-3xl blur-2xl opacity-40 animate-pulse" />
         
         {/* Modal content with glassmorphism */}
-        <div className="relative bg-cyber-dark/90 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="relative bg-gradient-to-b from-cyber-dark/95 to-cyber-darker/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-8 shadow-2xl">
           {/* Inner glow border */}
-          <div className="absolute inset-0 rounded-2xl border-2 border-neon-purple/30 pointer-events-none" />
+          <div className="absolute inset-0 rounded-2xl border-2 border-neon-purple/40 pointer-events-none" />
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
           
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="inline-block px-4 py-2 bg-neon-green/20 border border-neon-green/40 rounded-full mb-4">
+            <div className="inline-block px-4 py-2 bg-neon-green/20 border border-neon-green/40 rounded-full mb-4 shadow-lg shadow-neon-green/20">
               <span className="text-neon-green text-sm font-cyber">✓ No-Loss Complete</span>
             </div>
-            <h2 className="font-arcade text-xl mb-1">
+            <h2 className="font-arcade text-2xl mb-1">
               <NeonText color="cyan">SESSION</NeonText>
             </h2>
-            <h2 className="font-arcade text-xl">
+            <h2 className="font-arcade text-2xl">
               <NeonText color="pink">SETTLED</NeonText>
             </h2>
+            <p className="text-gray-400 font-cyber text-sm mt-3">
+              You kept the yield alive for <span className="text-neon-cyan font-bold">{durationSeconds}</span> seconds
+            </p>
           </div>
 
           {/* Principal Returned - Highlighted */}
@@ -107,9 +113,9 @@ export function SessionSettledModal({
             onClick={onWithdraw}
             variant="green"
             size="lg"
-            className="w-full"
+            className="w-full shadow-lg shadow-neon-green/30"
           >
-            💰 Settle & Withdraw
+            💰 Claim & Withdraw
           </NeonButton>
         </div>
       </div>
