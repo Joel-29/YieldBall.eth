@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { PinballEngine } from '../engine/PinballEngine.js';
 import { GameHUD, ControlsHint } from './GameHUD.jsx';
 
@@ -19,36 +19,48 @@ export function PinballGame({
   const containerRef = useRef(null);
   const gameEngineRef = useRef(null);
   const touchAreaRef = useRef(null);
+  const initializedRef = useRef(false);
 
+  // Store callbacks in refs to avoid re-creating the engine
+  const callbacksRef = useRef({
+    onBumperHit,
+    onFlashLoanRamp,
+    onDrain,
+    onScoreUpdate,
+    onStateUpdate,
+  });
+
+  // Update refs when callbacks change (without triggering re-render)
+  useEffect(() => {
+    callbacksRef.current = {
+      onBumperHit,
+      onFlashLoanRamp,
+      onDrain,
+      onScoreUpdate,
+      onStateUpdate,
+    };
+  }, [onBumperHit, onFlashLoanRamp, onDrain, onScoreUpdate, onStateUpdate]);
+
+  // Stable callback wrappers
   const handleBumperHit = useCallback((bumperIndex, points, multiplier) => {
-    if (onBumperHit) {
-      onBumperHit(bumperIndex, points, multiplier);
-    }
-  }, [onBumperHit]);
+    callbacksRef.current.onBumperHit?.(bumperIndex, points, multiplier);
+  }, []);
 
   const handleFlashLoanRamp = useCallback((bonus) => {
-    if (onFlashLoanRamp) {
-      onFlashLoanRamp(bonus);
-    }
-  }, [onFlashLoanRamp]);
+    callbacksRef.current.onFlashLoanRamp?.(bonus);
+  }, []);
 
   const handleDrain = useCallback((finalScore) => {
-    if (onDrain) {
-      onDrain(finalScore);
-    }
-  }, [onDrain]);
+    callbacksRef.current.onDrain?.(finalScore);
+  }, []);
 
   const handleScoreUpdate = useCallback((newScore) => {
-    if (onScoreUpdate) {
-      onScoreUpdate(newScore);
-    }
-  }, [onScoreUpdate]);
+    callbacksRef.current.onScoreUpdate?.(newScore);
+  }, []);
 
   const handleStateUpdate = useCallback((stateData) => {
-    if (onStateUpdate) {
-      onStateUpdate(stateData);
-    }
-  }, [onStateUpdate]);
+    callbacksRef.current.onStateUpdate?.(stateData);
+  }, []);
 
   // Mobile touch handler - tap left/right half of screen
   const handleTouch = useCallback((e) => {
@@ -80,7 +92,11 @@ export function PinballGame({
   }, []);
 
   useEffect(() => {
-    if (!containerRef.current || !isPlaying) return;
+    // Only initialize once when isPlaying becomes true
+    if (!containerRef.current || !isPlaying || initializedRef.current) return;
+
+    // Mark as initialized
+    initializedRef.current = true;
 
     // Clear any existing canvas
     containerRef.current.innerHTML = '';
@@ -108,8 +124,9 @@ export function PinballGame({
         gameEngineRef.current.destroy();
         gameEngineRef.current = null;
       }
+      initializedRef.current = false;
     };
-  }, [isPlaying, playerClass, handleBumperHit, handleFlashLoanRamp, handleDrain, handleScoreUpdate, handleStateUpdate, engineRef]);
+  }, [isPlaying]); // Only depend on isPlaying
 
   if (!isPlaying) {
     return null;

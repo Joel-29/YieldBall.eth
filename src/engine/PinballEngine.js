@@ -1,15 +1,4 @@
-import Matter from 'matter-js';
-
-const {
-  Engine,
-  Render,
-  Runner,
-  Bodies,
-  Body,
-  Composite,
-  Constraint,
-  Events,
-} = Matter;
+import Phaser from 'phaser';
 
 // Base flipper width for scaling
 const BASE_FLIPPER_WIDTH = 70;
@@ -17,54 +6,786 @@ const BASE_FLIPPER_WIDTH = 70;
 // Game settings based on player class (from ENS yieldball.class)
 export const PLAYER_CLASSES = {
   whale: {
-    flipperWidth: BASE_FLIPPER_WIDTH * 1.5, // 1.5x flipper size
-    ballDensity: 2.0,
-    ballSpeed: 0.6, // Slower ball
+    flipperScale: 1.5,
+    ballMass: 2.0,
+    ballSpeed: 0.6,
     yieldMultiplier: 1.0,
-    flipperCooldown: 100,
-    description: 'Whale Mode: 1.5x Flippers, Slow Ball',
+    description: 'Whale Mode: 1.5x Flippers, Heavy Ball',
   },
   degen: {
-    flipperWidth: BASE_FLIPPER_WIDTH * 0.5, // 0.5x flipper size
-    ballDensity: 0.5,
-    ballSpeed: 1.5,
-    yieldMultiplier: 2.0, // 2x yield multiplier
-    flipperCooldown: 100,
-    description: 'Degen Mode: 0.5x Flippers, 2x Yield!',
+    flipperScale: 0.6,
+    ballMass: 1.0,
+    ballSpeed: 1.2,
+    yieldMultiplier: 2.0,
+    description: 'Degen Mode: 0.6x Flippers, 2x Yield!',
   },
   sniper: {
-    flipperWidth: BASE_FLIPPER_WIDTH,
-    ballDensity: 0.8,
-    ballSpeed: 1.8,
+    flipperScale: 1.0,
+    ballMass: 0.8,
+    ballSpeed: 1.5,
     yieldMultiplier: 1.2,
-    flipperCooldown: 0,
     description: 'Sniper Mode: Fast Ball, 1.2x Yield',
   },
   default: {
-    flipperWidth: BASE_FLIPPER_WIDTH,
-    ballDensity: 1.0,
+    flipperScale: 1.0,
+    ballMass: 1.0,
     ballSpeed: 1.0,
     yieldMultiplier: 1.0,
-    flipperCooldown: 100,
     description: 'Standard Mode',
   },
 };
 
-// Generate cryptographic hash for state channel simulation
-function generateStateHash(data) {
-  const timestamp = Date.now();
-  const payload = JSON.stringify({ ...data, timestamp, nonce: Math.random() });
-  let hash = '0x';
-  for (let i = 0; i < 64; i++) {
-    hash += Math.floor(Math.random() * 16).toString(16);
+// Pinball Scene Class
+class PinballScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'PinballScene' });
+    this.ball = null;
+    this.leftFlipper = null;
+    this.rightFlipper = null;
+    this.bumpers = [];
+    this.bumperSprites = [];
+    this.ballLaunched = false;
+    this.isGameOver = false;
+    this.score = 0;
+    this.leftFlipperActive = false;
+    this.rightFlipperActive = false;
+    this.flipperAngleLimit = Phaser.Math.DegToRad(30);
+    this.flipperRestAngle = Phaser.Math.DegToRad(30);
   }
-  return { hash, timestamp, payload };
+
+  init(data) {
+    // Get callbacks from global scope (set by PinballEngine wrapper)
+    const callbacks = window.__yieldballCallbacks || {};
+    this.playerClass = callbacks.playerClass || 'default';
+    this.settings = callbacks.settings || PLAYER_CLASSES.default;
+    this.onBumperHit = callbacks.onBumperHit || (() => {});
+    this.onFlashLoanRamp = callbacks.onFlashLoanRamp || (() => {});
+    this.onDrain = callbacks.onDrain || (() => {});
+    this.onScoreUpdate = callbacks.onScoreUpdate || (() => {});
+    this.score = 0;
+    this.ballLaunched = false;
+    this.isGameOver = false;
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    
+    // Draw cyberpunk background first (lowest layer)
+    this.createBackground();
+    
+    // Create walls
+    this.createWalls();
+    
+    // Create bumpers
+    this.createBumpers();
+    
+    // Create launch tube
+    this.createLaunchTube();
+    
+    // Create flippers (must be after background)
+    this.createFlippers();
+    
+    // Setup keyboard controls
+    this.setupControls();
+    
+    // Setup collision events
+    this.setupCollisions();
+    
+    // Create particle emitter texture
+    this.createParticleTexture();
+    
+    // Add launch instruction text
+    this.launchText = this.add.text(width - 30, height - 120, 'Press\nSPACE', {
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      color: '#22c55e',
+      align: 'center',
+    }).setOrigin(0.5);
+    
+    // Create ball graphics (but don't spawn physics body yet)
+    this.ballGraphics = this.add.graphics();
+    this.ballGraphics.setDepth(10);
+    
+    // Enable drain detection after a delay
+    this.drainEnabled = false;
+    this.time.delayedCall(1500, () => {
+      this.drainEnabled = true;
+    });
+  }
+
+  createBackground() {
+    const { width, height } = this.scale;
+    
+    // Dark background with grid
+    const graphics = this.add.graphics();
+    graphics.setDepth(-10);
+    graphics.fillStyle(0x020617, 1);
+    graphics.fillRect(0, 0, width, height);
+    
+    // Draw neon grid lines
+    graphics.lineStyle(1, 0x1e293b, 0.5);
+    for (let x = 0; x <= width; x += 20) {
+      graphics.lineBetween(x, 0, x, height);
+    }
+    for (let y = 0; y <= height; y += 20) {
+      graphics.lineBetween(0, y, width, y);
+    }
+  }
+
+  createWalls() {
+    const { width, height } = this.scale;
+    const wallThickness = 32;
+    
+    // Draw visual walls
+    const wallGraphics = this.add.graphics();
+    wallGraphics.setDepth(5);
+    wallGraphics.lineStyle(3, 0x8b5cf6, 1);
+    
+    // Left wall line
+    wallGraphics.lineBetween(10, 0, 10, height);
+    
+    // Top wall line
+    wallGraphics.lineBetween(10, 10, width - 10, 10);
+    
+    // Right wall line (partial - gap for launch tube)
+    wallGraphics.lineBetween(width - 50, 10, width - 50, height - 300);
+    
+    // Create physics walls
+    // Top wall
+    this.matter.add.rectangle(width / 2, 0, width + 100, wallThickness, {
+      isStatic: true,
+      label: 'wall',
+    });
+    
+    // Left wall
+    this.matter.add.rectangle(0, height / 2, wallThickness, height + 100, {
+      isStatic: true,
+      label: 'wall',
+    });
+    
+    // Right wall (partial)
+    this.matter.add.rectangle(width - 35, height / 2 - 150, wallThickness, height - 250, {
+      isStatic: true,
+      label: 'wall',
+    });
+    
+    // Bottom drain zone (sensor)
+    this.drainZone = this.matter.add.rectangle(width / 2, height + 30, width, 60, {
+      isStatic: true,
+      isSensor: true,
+      label: 'drain',
+    });
+    
+    // Draw drain warning line
+    const drainGraphics = this.add.graphics();
+    drainGraphics.setDepth(5);
+    drainGraphics.lineStyle(2, 0xff006e, 0.5);
+    drainGraphics.lineBetween(10, height - 10, width - 60, height - 10);
+    
+    // Bottom slopes (physical)
+    this.matter.add.rectangle(70, height - 50, 100, 15, {
+      isStatic: true,
+      angle: Phaser.Math.DegToRad(25),
+      label: 'slope',
+    });
+    
+    this.matter.add.rectangle(width - 110, height - 50, 100, 15, {
+      isStatic: true,
+      angle: Phaser.Math.DegToRad(-25),
+      label: 'slope',
+    });
+    
+    // Draw slopes visually using polygons
+    const slopeGraphics = this.add.graphics();
+    slopeGraphics.setDepth(5);
+    slopeGraphics.fillStyle(0x1e293b, 1);
+    slopeGraphics.lineStyle(3, 0x8b5cf6, 1);
+    
+    // Left slope visual (rotated rectangle approximation)
+    slopeGraphics.fillRect(20, height - 65, 100, 15);
+    slopeGraphics.strokeRect(20, height - 65, 100, 15);
+    
+    // Right slope visual
+    slopeGraphics.fillRect(width - 160, height - 65, 100, 15);
+    slopeGraphics.strokeRect(width - 160, height - 65, 100, 15);
+    
+    // Flash Loan Ramp zone (sensor)
+    this.flashLoanRamp = this.matter.add.rectangle(width / 2, 70, 100, 30, {
+      isStatic: true,
+      isSensor: true,
+      label: 'flashLoanRamp',
+    });
+    
+    // Draw flash loan ramp
+    const rampGraphics = this.add.graphics();
+    rampGraphics.setDepth(5);
+    rampGraphics.fillStyle(0x22c55e, 0.3);
+    rampGraphics.fillRect(width / 2 - 50, 55, 100, 30);
+    rampGraphics.lineStyle(2, 0x22c55e, 1);
+    rampGraphics.strokeRect(width / 2 - 50, 55, 100, 30);
+    
+    this.add.text(width / 2, 70, '⚡ FLASH LOAN', {
+      fontSize: '10px',
+      fontFamily: 'monospace',
+      color: '#22c55e',
+    }).setOrigin(0.5).setDepth(6);
+  }
+
+  createFlippers() {
+    const { width, height } = this.scale;
+    const flipperWidth = BASE_FLIPPER_WIDTH * this.settings.flipperScale;
+    const flipperHeight = 14;
+    
+    // Flipper pivot positions
+    const leftPivotX = 120;
+    const rightPivotX = 280;
+    const pivotY = 550;
+    
+    // Draw pivot points
+    const pivotGraphics = this.add.graphics();
+    pivotGraphics.setDepth(5);
+    pivotGraphics.fillStyle(0x8b5cf6, 1);
+    pivotGraphics.fillCircle(leftPivotX, pivotY, 6);
+    pivotGraphics.fillCircle(rightPivotX, pivotY, 6);
+    pivotGraphics.lineStyle(2, 0x00f5ff, 1);
+    pivotGraphics.strokeCircle(leftPivotX, pivotY, 8);
+    pivotGraphics.strokeCircle(rightPivotX, pivotY, 8);
+    
+    // Create flipper physics bodies
+    this.leftFlipper = this.matter.add.rectangle(
+      leftPivotX + flipperWidth / 2 - 10,
+      pivotY,
+      flipperWidth,
+      flipperHeight,
+      {
+        label: 'leftFlipper',
+        chamfer: { radius: 5 },
+        friction: 0.1,
+        restitution: 0.5,
+      }
+    );
+    
+    this.rightFlipper = this.matter.add.rectangle(
+      rightPivotX - flipperWidth / 2 + 10,
+      pivotY,
+      flipperWidth,
+      flipperHeight,
+      {
+        label: 'rightFlipper',
+        chamfer: { radius: 5 },
+        friction: 0.1,
+        restitution: 0.5,
+      }
+    );
+    
+    // Pin flippers to pivot points using world constraints
+    this.matter.add.worldConstraint(this.leftFlipper, 0, 1, {
+      pointA: { x: leftPivotX, y: pivotY },
+      pointB: { x: -flipperWidth / 2 + 10, y: 0 },
+    });
+    
+    this.matter.add.worldConstraint(this.rightFlipper, 0, 1, {
+      pointA: { x: rightPivotX, y: pivotY },
+      pointB: { x: flipperWidth / 2 - 10, y: 0 },
+    });
+    
+    // Set initial resting angles
+    Phaser.Physics.Matter.Matter.Body.setAngle(this.leftFlipper, this.flipperRestAngle);
+    Phaser.Physics.Matter.Matter.Body.setAngle(this.rightFlipper, -this.flipperRestAngle);
+    
+    // Create flipper graphics
+    this.leftFlipperGraphics = this.add.graphics();
+    this.leftFlipperGraphics.setDepth(6);
+    this.rightFlipperGraphics = this.add.graphics();
+    this.rightFlipperGraphics.setDepth(6);
+    
+    // Store flipper dimensions
+    this.flipperWidth = flipperWidth;
+    this.flipperHeight = flipperHeight;
+  }
+
+  createBumpers() {
+    const bumperPositions = [
+      { x: 100, y: 180, radius: 25, color: 0xff006e },
+      { x: 200, y: 130, radius: 30, color: 0x00f5ff },
+      { x: 300, y: 180, radius: 25, color: 0xff006e },
+      { x: 150, y: 280, radius: 22, color: 0x8b5cf6 },
+      { x: 250, y: 280, radius: 22, color: 0x8b5cf6 },
+    ];
+    
+    this.bumpers = [];
+    this.bumperGraphicsArr = [];
+    
+    bumperPositions.forEach((pos, index) => {
+      // Create physics body
+      const bumper = this.matter.add.circle(pos.x, pos.y, pos.radius, {
+        isStatic: true,
+        restitution: 1.5,
+        label: `bumper-${index}`,
+      });
+      bumper.bumperColor = pos.color;
+      bumper.bumperRadius = pos.radius;
+      bumper.bumperX = pos.x;
+      bumper.bumperY = pos.y;
+      this.bumpers.push(bumper);
+      
+      // Draw glow effect (background)
+      const glowGraphics = this.add.graphics();
+      glowGraphics.setDepth(3);
+      glowGraphics.fillStyle(pos.color, 0.3);
+      glowGraphics.fillCircle(pos.x, pos.y, pos.radius + 10);
+      
+      // Draw bumper
+      const bumperGraphics = this.add.graphics();
+      bumperGraphics.setDepth(4);
+      bumperGraphics.fillStyle(pos.color, 1);
+      bumperGraphics.fillCircle(pos.x, pos.y, pos.radius);
+      bumperGraphics.lineStyle(3, 0xffffff, 1);
+      bumperGraphics.strokeCircle(pos.x, pos.y, pos.radius);
+      
+      this.bumperGraphicsArr.push({ main: bumperGraphics, glow: glowGraphics, ...pos, index });
+    });
+  }
+
+  createLaunchTube() {
+    const { width, height } = this.scale;
+    const tubeX = width - 30;
+    const tubeWidth = 30;
+    
+    // Physics walls for tube
+    this.matter.add.rectangle(tubeX - tubeWidth / 2 - 5, height - 150, 8, 300, {
+      isStatic: true,
+      label: 'launchTubeLeft',
+    });
+    
+    this.matter.add.rectangle(tubeX + tubeWidth / 2 + 5, height - 150, 8, 300, {
+      isStatic: true,
+      label: 'launchTubeRight',
+    });
+    
+    // Bottom stopper
+    this.matter.add.rectangle(tubeX, height - 15, tubeWidth, 10, {
+      isStatic: true,
+      label: 'launchTubeStopper',
+    });
+    
+    // Guide at top
+    this.matter.add.rectangle(tubeX - 20, 100, 40, 10, {
+      isStatic: true,
+      angle: Phaser.Math.DegToRad(25),
+      label: 'launchTubeGuide',
+    });
+    
+    // Draw launch tube visuals
+    const tubeGraphics = this.add.graphics();
+    tubeGraphics.setDepth(5);
+    tubeGraphics.lineStyle(2, 0x22c55e, 1);
+    tubeGraphics.strokeRect(tubeX - tubeWidth / 2 - 5, height - 300, tubeWidth + 10, 285);
+  }
+
+  createParticleTexture() {
+    // Create a simple particle texture using graphics
+    const particleGfx = this.make.graphics({ add: false });
+    particleGfx.fillStyle(0xff006e, 1);
+    particleGfx.fillCircle(8, 8, 8);
+    particleGfx.generateTexture('particle', 16, 16);
+    particleGfx.destroy();
+  }
+
+  createBall() {
+    const { width, height } = this.scale;
+    const ballX = width - 30;
+    const ballY = height - 60;
+    const ballRadius = 12;
+    
+    // Remove existing ball if any
+    if (this.ball) {
+      this.matter.world.remove(this.ball);
+    }
+    
+    // Create ball physics body
+    this.ball = this.matter.add.circle(ballX, ballY, ballRadius, {
+      restitution: 0.6,
+      friction: 0,
+      frictionAir: 0.01,
+      label: 'ball',
+    });
+    
+    // Set ball mass based on player class
+    Phaser.Physics.Matter.Matter.Body.setMass(this.ball, this.settings.ballMass);
+    
+    // Create particle emitter for ball trail
+    if (!this.ballParticles) {
+      this.ballParticles = this.add.particles(0, 0, 'particle', {
+        speed: { min: 0, max: 10 },
+        scale: { start: 0.5, end: 0 },
+        alpha: { start: 0.6, end: 0 },
+        lifespan: 300,
+        blendMode: 'ADD',
+        frequency: 30,
+        emitting: false,
+      });
+      this.ballParticles.setDepth(9);
+    }
+  }
+
+  setupControls() {
+    // Keyboard controls
+    this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.keyLeft = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+    this.keyRight = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+    this.keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    
+    // Touch/click controls
+    this.lastTapTime = 0;
+    this.input.on('pointerdown', (pointer) => {
+      if (this.isGameOver) return;
+      
+      const { width } = this.scale;
+      const now = this.time.now;
+      
+      // Double tap to launch
+      if (now - this.lastTapTime < 300) {
+        this.launchBall();
+        this.lastTapTime = 0;
+        return;
+      }
+      this.lastTapTime = now;
+      
+      // Single tap - left or right flipper
+      if (pointer.x < width / 2) {
+        this.flipLeft();
+      } else {
+        this.flipRight();
+      }
+    });
+  }
+
+  setupCollisions() {
+    this.matter.world.on('collisionstart', (event) => {
+      event.pairs.forEach((pair) => {
+        const labels = [pair.bodyA.label, pair.bodyB.label];
+        
+        // Check bumper hits
+        this.bumpers.forEach((bumper, index) => {
+          if (labels.includes(bumper.label) && labels.includes('ball')) {
+            this.handleBumperHit(bumper, index);
+          }
+        });
+        
+        // Check Flash Loan Ramp
+        if (labels.includes('flashLoanRamp') && labels.includes('ball')) {
+          this.handleFlashLoanRamp();
+        }
+        
+        // Check drain
+        if (labels.includes('drain') && labels.includes('ball') && this.drainEnabled && this.ballLaunched) {
+          this.handleDrain();
+        }
+      });
+    });
+  }
+
+  handleBumperHit(bumper, index) {
+    const basePoints = 100;
+    const points = basePoints * this.settings.yieldMultiplier;
+    this.score += points;
+    
+    // Flash effect on bumper
+    const bumperGfx = this.bumperGraphicsArr[index];
+    if (bumperGfx) {
+      bumperGfx.main.clear();
+      bumperGfx.main.fillStyle(0xffff00, 1);
+      bumperGfx.main.fillCircle(bumperGfx.x, bumperGfx.y, bumperGfx.radius);
+      bumperGfx.main.lineStyle(5, 0xffffff, 1);
+      bumperGfx.main.strokeCircle(bumperGfx.x, bumperGfx.y, bumperGfx.radius);
+      
+      // Reset after flash
+      this.time.delayedCall(150, () => {
+        bumperGfx.main.clear();
+        bumperGfx.main.fillStyle(bumperGfx.color, 1);
+        bumperGfx.main.fillCircle(bumperGfx.x, bumperGfx.y, bumperGfx.radius);
+        bumperGfx.main.lineStyle(3, 0xffffff, 1);
+        bumperGfx.main.strokeCircle(bumperGfx.x, bumperGfx.y, bumperGfx.radius);
+      });
+    }
+    
+    // Emit event to React
+    this.game.events.emit('updateScore', { points, total: this.score, yieldMultiplier: this.settings.yieldMultiplier });
+    this.onBumperHit(index, points, this.settings.yieldMultiplier);
+    this.onScoreUpdate(this.score);
+  }
+
+  handleFlashLoanRamp() {
+    const bonus = 500 * this.settings.yieldMultiplier;
+    this.score += bonus;
+    
+    console.log(`%c⚡ FLASH LOAN RAMP! +${bonus} points!`, 'color: #22c55e; font-weight: bold;');
+    
+    this.game.events.emit('flashLoanRamp', { bonus, total: this.score });
+    this.onFlashLoanRamp(bonus);
+    this.onScoreUpdate(this.score);
+  }
+
+  handleDrain() {
+    if (this.isGameOver) return;
+    
+    this.isGameOver = true;
+    this.ballLaunched = false;
+    
+    console.log(`%c⚠️ BALL DRAINED!`, 'color: #ff006e; font-weight: bold;');
+    
+    // Stop particle emitter
+    if (this.ballParticles) {
+      this.ballParticles.stop();
+    }
+    
+    this.game.events.emit('drain', { score: this.score });
+    this.onDrain(this.score);
+  }
+
+  launchBall() {
+    if (this.isGameOver || this.ballLaunched) return;
+    
+    if (!this.ball) {
+      this.createBall();
+    }
+    
+    this.ballLaunched = true;
+    
+    // Hide launch text
+    if (this.launchText) {
+      this.launchText.setVisible(false);
+    }
+    
+    // Apply upward launch force
+    const launchForce = 0.05 * this.settings.ballSpeed;
+    const randomVariation = 0.8 + Math.random() * 0.4;
+    
+    Phaser.Physics.Matter.Matter.Body.applyForce(this.ball, this.ball.position, {
+      x: -0.002,
+      y: -launchForce * randomVariation,
+    });
+    
+    // Start particle emitter
+    if (this.ballParticles) {
+      this.ballParticles.start();
+    }
+    
+    console.log(`%c🚀 Ball launched!`, 'color: #22c55e; font-weight: bold;');
+  }
+
+  flipLeft() {
+    if (this.isGameOver) return;
+    this.leftFlipperActive = true;
+    
+    // Apply angular velocity: -0.2 as per spec
+    Phaser.Physics.Matter.Matter.Body.setAngularVelocity(this.leftFlipper, -0.2);
+    
+    this.time.delayedCall(150, () => {
+      this.leftFlipperActive = false;
+    });
+  }
+
+  flipRight() {
+    if (this.isGameOver) return;
+    this.rightFlipperActive = true;
+    
+    // Apply angular velocity: 0.2 as per spec
+    Phaser.Physics.Matter.Matter.Body.setAngularVelocity(this.rightFlipper, 0.2);
+    
+    this.time.delayedCall(150, () => {
+      this.rightFlipperActive = false;
+    });
+  }
+
+  update() {
+    // Update flippers
+    this.updateFlippers();
+    
+    // Draw flippers
+    this.drawFlippers();
+    
+    // Draw ball
+    this.drawBall();
+    
+    // Check if ball fell through (backup drain detection)
+    if (this.ball && this.ballLaunched && !this.isGameOver && this.drainEnabled) {
+      if (this.ball.position.y > this.scale.height + 20) {
+        this.handleDrain();
+      }
+    }
+  }
+
+  updateFlippers() {
+    const angleLimit = this.flipperAngleLimit;
+    const restAngle = this.flipperRestAngle;
+    const MatterBody = Phaser.Physics.Matter.Matter.Body;
+    
+    // Left flipper
+    if (this.keyA.isDown || this.keyLeft.isDown || this.leftFlipperActive) {
+      if (this.leftFlipper.angle > -angleLimit) {
+        MatterBody.setAngularVelocity(this.leftFlipper, -0.2);
+      } else {
+        MatterBody.setAngle(this.leftFlipper, -angleLimit);
+        MatterBody.setAngularVelocity(this.leftFlipper, 0);
+      }
+    } else {
+      if (this.leftFlipper.angle < restAngle) {
+        MatterBody.setAngularVelocity(this.leftFlipper, 0.15);
+      } else {
+        MatterBody.setAngle(this.leftFlipper, restAngle);
+        MatterBody.setAngularVelocity(this.leftFlipper, 0);
+      }
+    }
+    
+    // Right flipper
+    if (this.keyD.isDown || this.keyRight.isDown || this.rightFlipperActive) {
+      if (this.rightFlipper.angle < angleLimit) {
+        MatterBody.setAngularVelocity(this.rightFlipper, 0.2);
+      } else {
+        MatterBody.setAngle(this.rightFlipper, angleLimit);
+        MatterBody.setAngularVelocity(this.rightFlipper, 0);
+      }
+    } else {
+      if (this.rightFlipper.angle > -restAngle) {
+        MatterBody.setAngularVelocity(this.rightFlipper, -0.15);
+      } else {
+        MatterBody.setAngle(this.rightFlipper, -restAngle);
+        MatterBody.setAngularVelocity(this.rightFlipper, 0);
+      }
+    }
+    
+    // Launch ball with space
+    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+      this.launchBall();
+    }
+  }
+
+  drawFlippers() {
+    const w = this.flipperWidth;
+    const h = this.flipperHeight;
+    
+    // Left flipper
+    this.leftFlipperGraphics.clear();
+    this.leftFlipperGraphics.fillStyle(0xff006e, 1);
+    this.leftFlipperGraphics.lineStyle(2, 0x00f5ff, 1);
+    
+    // Draw rotated rectangle using polygon
+    const leftVerts = this.getRotatedRectVerts(
+      this.leftFlipper.position.x,
+      this.leftFlipper.position.y,
+      w, h,
+      this.leftFlipper.angle
+    );
+    this.leftFlipperGraphics.fillPoints(leftVerts, true);
+    this.leftFlipperGraphics.strokePoints(leftVerts, true);
+    
+    // Right flipper
+    this.rightFlipperGraphics.clear();
+    this.rightFlipperGraphics.fillStyle(0xff006e, 1);
+    this.rightFlipperGraphics.lineStyle(2, 0x00f5ff, 1);
+    
+    const rightVerts = this.getRotatedRectVerts(
+      this.rightFlipper.position.x,
+      this.rightFlipper.position.y,
+      w, h,
+      this.rightFlipper.angle
+    );
+    this.rightFlipperGraphics.fillPoints(rightVerts, true);
+    this.rightFlipperGraphics.strokePoints(rightVerts, true);
+  }
+
+  getRotatedRectVerts(cx, cy, w, h, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const hw = w / 2;
+    const hh = h / 2;
+    
+    const corners = [
+      { x: -hw, y: -hh },
+      { x: hw, y: -hh },
+      { x: hw, y: hh },
+      { x: -hw, y: hh },
+    ];
+    
+    return corners.map(c => ({
+      x: cx + c.x * cos - c.y * sin,
+      y: cy + c.x * sin + c.y * cos,
+    }));
+  }
+
+  drawBall() {
+    if (!this.ball) return;
+    
+    const x = this.ball.position.x;
+    const y = this.ball.position.y;
+    const radius = 12;
+    
+    this.ballGraphics.clear();
+    
+    // Ball glow
+    this.ballGraphics.fillStyle(0xff006e, 0.3);
+    this.ballGraphics.fillCircle(x, y, radius + 10);
+    
+    // Ball body
+    this.ballGraphics.fillStyle(0xff006e, 1);
+    this.ballGraphics.fillCircle(x, y, radius);
+    this.ballGraphics.lineStyle(2, 0x00f5ff, 1);
+    this.ballGraphics.strokeCircle(x, y, radius);
+    
+    // Inner highlight
+    this.ballGraphics.fillStyle(0xffffff, 0.5);
+    this.ballGraphics.fillCircle(x - 3, y - 3, radius / 3);
+    
+    // Update particle emitter position
+    if (this.ballParticles && this.ballLaunched) {
+      this.ballParticles.setPosition(x, y);
+    }
+  }
+
+  reset() {
+    const { width, height } = this.scale;
+    
+    this.isGameOver = false;
+    this.score = 0;
+    this.ballLaunched = false;
+    this.drainEnabled = false;
+    
+    // Reset ball position
+    if (this.ball) {
+      const MatterBody = Phaser.Physics.Matter.Matter.Body;
+      MatterBody.setPosition(this.ball, { x: width - 30, y: height - 60 });
+      MatterBody.setVelocity(this.ball, { x: 0, y: 0 });
+      MatterBody.setAngularVelocity(this.ball, 0);
+    }
+    
+    // Reset flippers
+    const MatterBody = Phaser.Physics.Matter.Matter.Body;
+    MatterBody.setAngle(this.leftFlipper, this.flipperRestAngle);
+    MatterBody.setAngle(this.rightFlipper, -this.flipperRestAngle);
+    MatterBody.setAngularVelocity(this.leftFlipper, 0);
+    MatterBody.setAngularVelocity(this.rightFlipper, 0);
+    
+    // Show launch text
+    if (this.launchText) {
+      this.launchText.setVisible(true);
+    }
+    
+    // Re-enable drain after delay
+    this.time.delayedCall(1500, () => {
+      this.drainEnabled = true;
+    });
+    
+    this.onScoreUpdate(0);
+  }
 }
 
+// PinballEngine wrapper class for React integration
 export class PinballEngine {
   constructor(container, options = {}) {
     this.container = container;
-    // Canvas size 400x600 as per spec
     this.width = options.width || 400;
     this.height = options.height || 600;
     this.playerClass = options.playerClass || 'default';
@@ -74,725 +795,99 @@ export class PinballEngine {
     this.onScoreUpdate = options.onScoreUpdate || (() => {});
     this.onStateUpdate = options.onStateUpdate || (() => {});
     
-    this.settings = PLAYER_CLASSES[this.playerClass];
-    this.score = 0;
-    this.isGameOver = false;
-    this.ball = null;
-    this.leftFlipper = null;
-    this.rightFlipper = null;
-    this.leftFlipperConstraint = null;
-    this.rightFlipperConstraint = null;
-    this.bumpers = [];
-    this.flashLoanRamp = null;
-    this.ballTrail = [];
-    this.ballLaunched = false;
-    
-    // Flipper angle settings (in radians)
-    // Resting state: 30 degrees, Active state: -30 degrees
-    this.flipperRestAngle = Math.PI / 6;  // 30 degrees
-    this.flipperActiveAngle = -Math.PI / 6; // -30 degrees
-    
-    // Flipper pivot positions
-    this.leftHingePos = { x: 120, y: 550 };
-    this.rightHingePos = { x: 280, y: 550 };
+    this.settings = PLAYER_CLASSES[this.playerClass] || PLAYER_CLASSES.default;
+    this.game = null;
+    this.scene = null;
     
     this.init();
   }
 
-  // Sign state update - simulates Yellow Network state channel
-  signStateUpdate(action, data) {
-    const stateData = {
-      action,
-      ...data,
-      score: this.score,
-      playerClass: this.playerClass,
-    };
-    
-    const { hash, timestamp } = generateStateHash(stateData);
-    
-    console.log(`%c🔐 STATE CHANNEL UPDATE`, 'color: #fbbf24; font-weight: bold; font-size: 14px;');
-    console.log(`%c   Action: ${action}`, 'color: #00f5ff;');
-    console.log(`%c   Hash: ${hash}`, 'color: #8b5cf6;');
-    console.log(`%c   Timestamp: ${timestamp}`, 'color: #22c55e;');
-    
-    this.onStateUpdate({ action, hash, timestamp, data: stateData });
-    
-    return hash;
-  }
-
   init() {
-    // Create engine with gravity
-    this.engine = Engine.create({
-      gravity: { x: 0, y: 1 },
-    });
-
-    // Create renderer - ensure bounds match world exactly
-    this.render = Render.create({
-      element: this.container,
-      engine: this.engine,
-      options: {
-        width: this.width,
-        height: this.height,
-        wireframes: false,
-        background: '#0f172a',
-        pixelRatio: window.devicePixelRatio || 1,
-      },
-    });
-
-    // Set render bounds to match world exactly - prevents ball disappearing
-    this.render.bounds = {
-      min: { x: 0, y: 0 },
-      max: { x: this.width, y: this.height }
+    // Store callbacks in global scope for scene access
+    window.__yieldballCallbacks = {
+      playerClass: this.playerClass,
+      settings: this.settings,
+      onBumperHit: this.onBumperHit,
+      onFlashLoanRamp: this.onFlashLoanRamp,
+      onDrain: this.onDrain,
+      onScoreUpdate: this.onScoreUpdate,
     };
-
-    this.createWalls();
-    this.createFlippers();
-    this.createBumpers();
-    this.createLaunchTube();
-    this.createBall();
-    this.setupCollisionEvents();
-    this.setupCustomRendering();
-
-    // Run the engine and renderer
-    this.runner = Runner.create();
-    Runner.run(this.runner, this.engine);
-    Render.run(this.render);
-
-    // Setup keyboard controls
-    this.setupControls();
-  }
-
-  createWalls() {
-    const wallThickness = 20;
     
-    const wallOptions = {
-      isStatic: true,
-      render: {
-        fillStyle: '#1e293b',
-        strokeStyle: '#8b5cf6',
-        lineWidth: 3,
-      },
-    };
-
-    // Create 4 solid walls - ensuring ball never escapes
-    const walls = [
-      // Top wall - at y: wallThickness/2 so ball bounces back
-      Bodies.rectangle(this.width / 2, wallThickness / 2, this.width, wallThickness, {
-        ...wallOptions,
-        label: 'topWall',
-      }),
-      // Left wall
-      Bodies.rectangle(wallThickness / 2, this.height / 2, wallThickness, this.height, {
-        ...wallOptions,
-        label: 'leftWall',
-      }),
-      // Right wall (with gap for launch tube)
-      Bodies.rectangle(this.width - wallThickness / 2, this.height / 2 - 100, wallThickness, this.height - 200, {
-        ...wallOptions,
-        label: 'rightWall',
-      }),
-    ];
-
-    // Bottom drain - sensor at y:610 that triggers game over
-    this.drain = Bodies.rectangle(this.width / 2, 610, this.width, 40, {
-      isStatic: true,
-      isSensor: true,
-      label: 'drain',
-      render: {
-        fillStyle: 'rgba(255, 0, 110, 0.1)',
-        strokeStyle: '#ff006e',
-        lineWidth: 1,
-      },
-    });
-
-    // Flash Loan Ramp sensor at the top (special bonus area)
-    this.flashLoanRamp = Bodies.rectangle(this.width / 2, 60, 100, 30, {
-      isStatic: true,
-      isSensor: true,
-      label: 'flashLoanRamp',
-      render: {
-        fillStyle: 'rgba(34, 197, 94, 0.3)',
-        strokeStyle: '#22c55e',
-        lineWidth: 2,
-      },
-    });
-
-    // Bottom slopes to guide ball to drain
-    const leftSlope = Bodies.rectangle(70, this.height - 50, 100, 15, {
-      ...wallOptions,
-      angle: Math.PI * 0.2,
-      label: 'leftSlope',
-    });
-
-    const rightSlope = Bodies.rectangle(this.width - 110, this.height - 50, 100, 15, {
-      ...wallOptions,
-      angle: -Math.PI * 0.2,
-      label: 'rightSlope',
-    });
-
-    Composite.add(this.engine.world, [...walls, this.drain, this.flashLoanRamp, leftSlope, rightSlope]);
-  }
-
-  createFlippers() {
-    const flipperWidth = this.settings.flipperWidth;
-    const flipperHeight = 15;
-    
-    // Create static circular hinges for each flipper
-    const hingeOptions = {
-      isStatic: true,
-      render: {
-        fillStyle: '#8b5cf6',
-        strokeStyle: '#00f5ff',
-        lineWidth: 2,
-      },
-    };
-
-    // Left hinge
-    const leftHinge = Bodies.circle(this.leftHingePos.x, this.leftHingePos.y, 8, {
-      ...hingeOptions,
-      label: 'leftHinge',
-    });
-
-    // Right hinge
-    const rightHinge = Bodies.circle(this.rightHingePos.x, this.rightHingePos.y, 8, {
-      ...hingeOptions,
-      label: 'rightHinge',
-    });
-
-    // Flipper body options
-    const flipperOptions = {
-      density: 0.01,
-      friction: 0.1,
-      frictionAir: 0.02,
-      restitution: 0.3,
-      render: {
-        fillStyle: '#ff006e',
-        strokeStyle: '#00f5ff',
-        lineWidth: 2,
-      },
-      chamfer: { radius: 5 },
-    };
-
-    // Left flipper - positioned so its LEFT end is at the hinge
-    this.leftFlipper = Bodies.rectangle(
-      this.leftHingePos.x + flipperWidth / 2,
-      this.leftHingePos.y,
-      flipperWidth,
-      flipperHeight,
-      { ...flipperOptions, label: 'leftFlipper' }
-    );
-
-    // Right flipper - positioned so its RIGHT end is at the hinge
-    this.rightFlipper = Bodies.rectangle(
-      this.rightHingePos.x - flipperWidth / 2,
-      this.rightHingePos.y,
-      flipperWidth,
-      flipperHeight,
-      { ...flipperOptions, label: 'rightFlipper' }
-    );
-
-    // Set initial rest angles
-    Body.setAngle(this.leftFlipper, this.flipperRestAngle);
-    Body.setAngle(this.rightFlipper, -this.flipperRestAngle);
-
-    // Update flipper positions after angle is set
-    Body.setPosition(this.leftFlipper, {
-      x: this.leftHingePos.x + (flipperWidth / 2) * Math.cos(this.flipperRestAngle),
-      y: this.leftHingePos.y + (flipperWidth / 2) * Math.sin(this.flipperRestAngle)
-    });
-
-    Body.setPosition(this.rightFlipper, {
-      x: this.rightHingePos.x - (flipperWidth / 2) * Math.cos(this.flipperRestAngle),
-      y: this.rightHingePos.y + (flipperWidth / 2) * Math.sin(this.flipperRestAngle)
-    });
-
-    // Create constraints to anchor flippers to hinges
-    // Left flipper constraint - pin left end to left hinge
-    this.leftFlipperConstraint = Constraint.create({
-      pointA: this.leftHingePos,
-      bodyB: this.leftFlipper,
-      pointB: { x: -flipperWidth / 2, y: 0 },
-      stiffness: 0.9,
-      length: 0,
-      render: {
-        visible: false,
-      },
-    });
-
-    // Right flipper constraint - pin right end to right hinge
-    this.rightFlipperConstraint = Constraint.create({
-      pointA: this.rightHingePos,
-      bodyB: this.rightFlipper,
-      pointB: { x: flipperWidth / 2, y: 0 },
-      stiffness: 0.9,
-      length: 0,
-      render: {
-        visible: false,
-      },
-    });
-
-    Composite.add(this.engine.world, [
-      leftHinge,
-      rightHinge,
-      this.leftFlipper,
-      this.rightFlipper,
-      this.leftFlipperConstraint,
-      this.rightFlipperConstraint,
-    ]);
-
-    // Track flipper states
-    this.leftFlipperActive = false;
-    this.rightFlipperActive = false;
-  }
-
-  createBumpers() {
-    // Bumper positions for 400x600 canvas
-    const bumperPositions = [
-      { x: 100, y: 180, color: '#ff006e', radius: 25 },  // Left bumper
-      { x: 200, y: 130, color: '#00f5ff', radius: 30 },  // Center top bumper
-      { x: 300, y: 180, color: '#ff006e', radius: 25 },  // Right bumper
-      { x: 150, y: 280, color: '#8b5cf6', radius: 22 },  // Lower left
-      { x: 250, y: 280, color: '#8b5cf6', radius: 22 },  // Lower right
-    ];
-
-    this.bumpers = bumperPositions.map((pos, index) => {
-      const bumper = Bodies.circle(pos.x, pos.y, pos.radius, {
-        isStatic: true,
-        restitution: 1.2,
-        label: `bumper-${index}`,
-        render: {
-          fillStyle: pos.color,
-          strokeStyle: '#ffffff',
-          lineWidth: 3,
+    // Phaser game configuration - use the class directly
+    const config = {
+      type: Phaser.AUTO,
+      width: this.width,
+      height: this.height,
+      parent: this.container,
+      backgroundColor: '#020617',
+      physics: {
+        default: 'matter',
+        matter: {
+          gravity: { y: 1.5 },
+          debug: false,
         },
-      });
-      bumper.bumperColor = pos.color;
-      bumper.isGlowing = false;
-      bumper.glowIntensity = 0;
-      return bumper;
-    });
-
-    Composite.add(this.engine.world, this.bumpers);
-  }
-
-  createLaunchTube() {
-    const tubeX = this.width - 30;
-    const tubeWidth = 30;
-    
-    const tubeOptions = {
-      isStatic: true,
-      render: {
-        fillStyle: '#1e293b',
-        strokeStyle: '#22c55e',
-        lineWidth: 2,
       },
+      scene: [PinballScene],
     };
-
-    // Launch tube walls
-    const tubeLeft = Bodies.rectangle(tubeX - tubeWidth / 2, this.height - 150, 8, 300, tubeOptions);
-    const tubeRight = Bodies.rectangle(tubeX + tubeWidth / 2, this.height - 150, 8, 300, {
-      ...tubeOptions,
-      render: {
-        ...tubeOptions.render,
-        strokeStyle: '#8b5cf6',
-      },
+    
+    // Create Phaser game
+    this.game = new Phaser.Game(config);
+    
+    // Wait for boot then start scene with data
+    this.game.events.once('ready', () => {
+      this.scene = this.game.scene.getScene('PinballScene');
     });
-
-    // Stopper at bottom of launch tube
-    const tubeStopper = Bodies.rectangle(tubeX, this.height - 20, tubeWidth, 10, tubeOptions);
-
-    // Curved guide at top of launch tube
-    const tubeGuide = Bodies.rectangle(tubeX - 25, 100, 50, 10, {
-      ...tubeOptions,
-      angle: Math.PI * 0.25,
+    
+    // Forward game events to React
+    this.game.events.on('updateScore', (data) => {
+      this.onStateUpdate({ action: 'BUMPER_HIT', ...data });
     });
-
-    Composite.add(this.engine.world, [tubeLeft, tubeRight, tubeStopper, tubeGuide]);
-  }
-
-  createBall() {
-    // Ball starts in launch tube
-    const ballX = this.width - 30;
-    const ballY = this.height - 60;
-    const ballRadius = 12;
-
-    // Ball physics as per spec: restitution: 0.5, friction: 0.01
-    this.ball = Bodies.circle(ballX, ballY, ballRadius, {
-      restitution: 0.5,
-      friction: 0.01,
-      frictionAir: 0.001,
-      density: this.settings.ballDensity * 0.002,
-      label: 'ball',
-      render: {
-        fillStyle: '#ff006e',
-        strokeStyle: '#00f5ff',
-        lineWidth: 2,
-      },
+    
+    this.game.events.on('flashLoanRamp', (data) => {
+      this.onStateUpdate({ action: 'FLASH_LOAN_RAMP', ...data });
     });
-
-    Composite.add(this.engine.world, this.ball);
-  }
-
-  setupCollisionEvents() {
-    // Delay drain detection to prevent false triggers at start
-    this.drainEnabled = false;
-    setTimeout(() => {
-      this.drainEnabled = true;
-    }, 1500);
-
-    Events.on(this.engine, 'collisionStart', (event) => {
-      event.pairs.forEach((pair) => {
-        const labels = [pair.bodyA.label, pair.bodyB.label];
-        
-        // Check for bumper hits
-        this.bumpers.forEach((bumper, index) => {
-          if (labels.includes(bumper.label) && labels.includes('ball')) {
-            this.handleBumperHit(bumper, index);
-          }
-        });
-
-        // Check for Flash Loan Ramp hit
-        if (labels.includes('flashLoanRamp') && labels.includes('ball')) {
-          this.handleFlashLoanRamp();
-        }
-
-        // Check for drain (only if enabled and ball was launched)
-        if (labels.includes('drain') && labels.includes('ball') && this.drainEnabled && this.ballLaunched) {
-          this.handleDrain();
-        }
-      });
+    
+    this.game.events.on('drain', (data) => {
+      this.onStateUpdate({ action: 'DRAIN', ...data });
     });
-
-    // Track ball position for trail effect and flipper updates
-    Events.on(this.engine, 'afterUpdate', () => {
-      if (this.ball && !this.isGameOver) {
-        // Ball trail
-        this.ballTrail.push({ x: this.ball.position.x, y: this.ball.position.y });
-        if (this.ballTrail.length > 15) {
-          this.ballTrail.shift();
-        }
-        
-        // Keep ball within horizontal bounds
-        const ballPos = this.ball.position;
-        if (ballPos.x < 30) {
-          Body.setPosition(this.ball, { x: 30, y: ballPos.y });
-        } else if (ballPos.x > this.width - 50) {
-          // Allow ball in launch tube area
-        }
-      }
-      
-      // Update flippers based on active state
-      this.updateFlippers();
-    });
-  }
-  
-  updateFlippers() {
-    if (!this.leftFlipper || !this.rightFlipper) return;
-    
-    const angularSpeed = 0.4;
-    const returnSpeed = 0.15;
-    
-    // Left flipper control
-    if (this.leftFlipperActive) {
-      // Apply upward angular velocity
-      const targetAngle = this.flipperActiveAngle;
-      const currentAngle = this.leftFlipper.angle;
-      if (currentAngle > targetAngle) {
-        Body.setAngularVelocity(this.leftFlipper, -angularSpeed);
-      }
-    } else {
-      // Spring back to rest position
-      const targetAngle = this.flipperRestAngle;
-      const currentAngle = this.leftFlipper.angle;
-      const diff = targetAngle - currentAngle;
-      Body.setAngularVelocity(this.leftFlipper, diff * returnSpeed);
-    }
-    
-    // Right flipper control (mirrored)
-    if (this.rightFlipperActive) {
-      const targetAngle = -this.flipperActiveAngle;
-      const currentAngle = this.rightFlipper.angle;
-      if (currentAngle < targetAngle) {
-        Body.setAngularVelocity(this.rightFlipper, angularSpeed);
-      }
-    } else {
-      const targetAngle = -this.flipperRestAngle;
-      const currentAngle = this.rightFlipper.angle;
-      const diff = targetAngle - currentAngle;
-      Body.setAngularVelocity(this.rightFlipper, diff * returnSpeed);
-    }
-    
-    // Clamp flipper angles to prevent over-rotation
-    const leftAngle = this.leftFlipper.angle;
-    if (leftAngle < this.flipperActiveAngle) {
-      Body.setAngle(this.leftFlipper, this.flipperActiveAngle);
-      Body.setAngularVelocity(this.leftFlipper, 0);
-    } else if (leftAngle > this.flipperRestAngle) {
-      Body.setAngle(this.leftFlipper, this.flipperRestAngle);
-      Body.setAngularVelocity(this.leftFlipper, 0);
-    }
-    
-    const rightAngle = this.rightFlipper.angle;
-    if (rightAngle > -this.flipperActiveAngle) {
-      Body.setAngle(this.rightFlipper, -this.flipperActiveAngle);
-      Body.setAngularVelocity(this.rightFlipper, 0);
-    } else if (rightAngle < -this.flipperRestAngle) {
-      Body.setAngle(this.rightFlipper, -this.flipperRestAngle);
-      Body.setAngularVelocity(this.rightFlipper, 0);
-    }
-  }
-
-  handleBumperHit(bumper, index) {
-    const basePoints = 100;
-    const points = basePoints * this.settings.yieldMultiplier;
-    this.score += points;
-    
-    // Trigger neon flash effect
-    bumper.isGlowing = true;
-    bumper.glowIntensity = 1;
-    bumper.render.strokeStyle = '#ffff00';
-    bumper.render.lineWidth = 8;
-    
-    setTimeout(() => {
-      bumper.isGlowing = false;
-      bumper.glowIntensity = 0;
-      bumper.render.strokeStyle = '#ffffff';
-      bumper.render.lineWidth = 3;
-    }, 200);
-
-    // Sign state channel update
-    this.signStateUpdate('BUMPER_HIT', {
-      bumperIndex: index,
-      points,
-      yieldMultiplier: this.settings.yieldMultiplier,
-    });
-
-    this.onBumperHit(index, points, this.settings.yieldMultiplier);
-    this.onScoreUpdate(this.score);
-  }
-
-  handleFlashLoanRamp() {
-    const flashLoanBonus = 500 * this.settings.yieldMultiplier;
-    this.score += flashLoanBonus;
-    
-    console.log(`%c⚡ FLASH LOAN RAMP! +${flashLoanBonus} points!`, 
-      'color: #22c55e; font-weight: bold; font-size: 16px;');
-    
-    this.signStateUpdate('FLASH_LOAN_RAMP', {
-      bonus: flashLoanBonus,
-      yieldMultiplier: this.settings.yieldMultiplier,
-    });
-
-    // Visual feedback
-    this.flashLoanRamp.render.fillStyle = 'rgba(34, 197, 94, 0.8)';
-    setTimeout(() => {
-      this.flashLoanRamp.render.fillStyle = 'rgba(34, 197, 94, 0.3)';
-    }, 300);
-
-    this.onFlashLoanRamp(flashLoanBonus);
-    this.onScoreUpdate(this.score);
-  }
-
-  handleDrain() {
-    if (this.isGameOver) return;
-    
-    this.isGameOver = true;
-    console.log(`%c⚠️ BALL DRAINED - Session ending...`, 
-      'color: #ff006e; font-weight: bold; font-size: 16px;');
-    
-    this.onDrain(this.score);
-  }
-
-  setupCustomRendering() {
-    Events.on(this.render, 'afterRender', () => {
-      const ctx = this.render.context;
-      
-      // Draw ball trail
-      if (this.ballTrail.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(this.ballTrail[0].x, this.ballTrail[0].y);
-        
-        this.ballTrail.forEach((point) => {
-          ctx.lineTo(point.x, point.y);
-        });
-        
-        const gradient = ctx.createLinearGradient(
-          this.ballTrail[0].x, this.ballTrail[0].y,
-          this.ballTrail[this.ballTrail.length - 1].x,
-          this.ballTrail[this.ballTrail.length - 1].y
-        );
-        gradient.addColorStop(0, 'rgba(255, 0, 110, 0)');
-        gradient.addColorStop(1, 'rgba(255, 0, 110, 0.8)');
-        
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 8;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-      }
-
-      // Draw ball glow
-      if (this.ball) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(this.ball.position.x, this.ball.position.y, 25, 0, Math.PI * 2);
-        const glowGradient = ctx.createRadialGradient(
-          this.ball.position.x, this.ball.position.y, 0,
-          this.ball.position.x, this.ball.position.y, 30
-        );
-        glowGradient.addColorStop(0, 'rgba(255, 0, 110, 0.6)');
-        glowGradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.3)');
-        glowGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
-        ctx.fillStyle = glowGradient;
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Draw bumper glow effects
-      this.bumpers.forEach((bumper) => {
-        if (bumper.isGlowing) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(bumper.position.x, bumper.position.y, 50, 0, Math.PI * 2);
-          const bumperGlow = ctx.createRadialGradient(
-            bumper.position.x, bumper.position.y, 15,
-            bumper.position.x, bumper.position.y, 55
-          );
-          bumperGlow.addColorStop(0, 'rgba(255, 255, 0, 0.9)');
-          bumperGlow.addColorStop(1, 'rgba(255, 255, 0, 0)');
-          ctx.fillStyle = bumperGlow;
-          ctx.fill();
-          ctx.restore();
-        }
-      });
-
-      // Draw launch instructions if ball not launched
-      if (!this.ballLaunched) {
-        ctx.save();
-        ctx.font = '12px Orbitron, sans-serif';
-        ctx.fillStyle = '#22c55e';
-        ctx.textAlign = 'center';
-        ctx.fillText('Press SPACE', this.width - 30, this.height - 100);
-        ctx.fillText('to launch!', this.width - 30, this.height - 85);
-        ctx.restore();
-      }
-    });
-  }
-
-  setupControls() {
-    this.keyDownHandler = (e) => {
-      if (this.isGameOver) return;
-      
-      // Prevent default to stop page scrolling
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-      
-      // Left flipper: A or Left Arrow
-      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
-        this.leftFlipperActive = true;
-      }
-      
-      // Right flipper: D or Right Arrow
-      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
-        this.rightFlipperActive = true;
-      }
-
-      // Launch ball: Space
-      if (e.key === ' ' || e.key === 'Space') {
-        this.launchBall();
-      }
-    };
-
-    this.keyUpHandler = (e) => {
-      if (this.isGameOver) return;
-      
-      // Left flipper release
-      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
-        this.leftFlipperActive = false;
-      }
-      
-      // Right flipper release
-      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
-        this.rightFlipperActive = false;
-      }
-    };
-
-    document.addEventListener('keydown', this.keyDownHandler);
-    document.addEventListener('keyup', this.keyUpHandler);
   }
 
   launchBall() {
-    if (!this.ball || this.isGameOver || this.ballLaunched) return;
-    
-    this.ballLaunched = true;
-    
-    // Apply upward launch force with random variation
-    const baseForce = 0.05 * this.settings.ballSpeed;
-    const randomVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2 multiplier
-    const launchForce = baseForce * randomVariation;
-    
-    Body.applyForce(this.ball, this.ball.position, { x: -0.002, y: -launchForce });
-    
-    console.log(`%c🚀 Ball launched! Speed multiplier: ${this.settings.ballSpeed}x`, 
-      'color: #22c55e; font-weight: bold;');
+    const scene = this.scene || this.game?.scene?.getScene('PinballScene');
+    if (scene && scene.launchBall) {
+      scene.launchBall();
+    }
   }
 
   flipLeft() {
-    if (this.isGameOver) return;
-    this.leftFlipperActive = true;
-    setTimeout(() => {
-      this.leftFlipperActive = false;
-    }, 150);
+    const scene = this.scene || this.game?.scene?.getScene('PinballScene');
+    if (scene && scene.flipLeft) {
+      scene.flipLeft();
+    }
   }
 
   flipRight() {
-    if (this.isGameOver) return;
-    this.rightFlipperActive = true;
-    setTimeout(() => {
-      this.rightFlipperActive = false;
-    }, 150);
+    const scene = this.scene || this.game?.scene?.getScene('PinballScene');
+    if (scene && scene.flipRight) {
+      scene.flipRight();
+    }
   }
 
   reset() {
-    this.isGameOver = false;
-    this.score = 0;
-    this.ballTrail = [];
-    this.ballLaunched = false;
-    this.drainEnabled = false;
-    this.leftFlipperActive = false;
-    this.rightFlipperActive = false;
-    
-    // Reset ball position to launch tube
-    Body.setPosition(this.ball, { x: this.width - 30, y: this.height - 60 });
-    Body.setVelocity(this.ball, { x: 0, y: 0 });
-    Body.setAngularVelocity(this.ball, 0);
-    
-    // Reset flipper angles
-    Body.setAngle(this.leftFlipper, this.flipperRestAngle);
-    Body.setAngle(this.rightFlipper, -this.flipperRestAngle);
-    Body.setAngularVelocity(this.leftFlipper, 0);
-    Body.setAngularVelocity(this.rightFlipper, 0);
-    
-    // Re-enable drain after delay
-    setTimeout(() => {
-      this.drainEnabled = true;
-    }, 1500);
-    
-    this.onScoreUpdate(0);
+    const scene = this.scene || this.game?.scene?.getScene('PinballScene');
+    if (scene) {
+      scene.reset();
+      if (scene.createBall) {
+        scene.createBall();
+      }
+    }
   }
 
   destroy() {
-    document.removeEventListener('keydown', this.keyDownHandler);
-    document.removeEventListener('keyup', this.keyUpHandler);
-    
-    Render.stop(this.render);
-    Runner.stop(this.runner);
-    Engine.clear(this.engine);
-    
-    if (this.render.canvas) {
-      this.render.canvas.remove();
+    if (this.game) {
+      this.game.destroy(true);
+      this.game = null;
+      this.scene = null;
     }
-    
-    this.render.textures = {};
   }
 }
