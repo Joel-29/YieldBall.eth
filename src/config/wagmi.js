@@ -1,7 +1,7 @@
 import '@rainbow-me/rainbowkit/styles.css';
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { http } from 'wagmi';
-import { mainnet, sepolia } from 'wagmi/chains';
+import { mainnet, sepolia, baseSepolia } from 'wagmi/chains';
 
 // Get project ID from environment variable
 // Create a .env file with: VITE_WALLETCONNECT_PROJECT_ID=your_project_id
@@ -14,18 +14,23 @@ if (!projectId) {
 export const config = getDefaultConfig({
   appName: 'YieldBall.eth',
   projectId: projectId || '',
-  chains: [mainnet, sepolia],
+  chains: [baseSepolia, sepolia, mainnet],
   transports: {
-    [mainnet.id]: http(),
+    [baseSepolia.id]: http(),
     [sepolia.id]: http(),
+    [mainnet.id]: http(),
   },
 });
 
-// USDC contract address (mainnet)
-export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+// USDC contract address on Base Sepolia (mock for demo)
+export const USDC_ADDRESS_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
-// Mock Vault contract address (for demo purposes)
-export const VAULT_ADDRESS = '0x1234567890123456789012345678901234567890';
+// YieldBall Vault contract address on Base Sepolia
+// Deploy your own contract and replace this address
+export const VAULT_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+
+// Chain ID for Base Sepolia
+export const TARGET_CHAIN_ID = baseSepolia.id;
 
 // USDC ABI (simplified for deposit/withdraw)
 export const USDC_ABI = [
@@ -46,18 +51,35 @@ export const USDC_ABI = [
   },
 ];
 
-// Mock Vault ABI
+// YieldBall Vault ABI - withdraw transfers principal + yield to msg.sender
 export const VAULT_ABI = [
   {
     name: 'deposit',
     type: 'function',
+    stateMutability: 'nonpayable',
     inputs: [{ name: 'amount', type: 'uint256' }],
     outputs: [],
   },
   {
     name: 'withdraw',
     type: 'function',
-    inputs: [],
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'principal', type: 'uint256' },
+      { name: 'yield', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'finalizeSettlement',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'player', type: 'address' },
+      { name: 'principal', type: 'uint256' },
+      { name: 'yieldAmount', type: 'uint256' },
+      { name: 'stateChannelSignature', type: 'bytes' },
+    ],
     outputs: [],
   },
 ];
