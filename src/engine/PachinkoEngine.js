@@ -13,14 +13,14 @@ import Matter from 'matter-js';
 const { Engine, Render, Runner, Bodies, Body, Composite, Events } = Matter;
 
 // Ball configurations based on ENS class
-// Physics tuned for smooth flow: zero friction, low air friction, high bounce
+// Physics tuned for FAST gameplay
 export const BALL_CONFIGS = {
   whale: {
     scale: 1.5,
     mass: 3,
-    restitution: 0.7,
-    friction: 0,
-    frictionAir: 0.008,
+    restitution: 0.6,
+    friction: 0.001,
+    frictionAir: 0.001,
     slop: 0.05,
     color: '#ffd700', // Gold
     label: '🐋 Whale',
@@ -29,9 +29,9 @@ export const BALL_CONFIGS = {
   degen: {
     scale: 0.7,
     mass: 1,
-    restitution: 0.9,
-    friction: 0,
-    frictionAir: 0.005,
+    restitution: 0.8,
+    friction: 0.001,
+    frictionAir: 0.001,
     slop: 0.05,
     color: '#ff006e', // Neon Red
     label: '🔥 Degen',
@@ -40,9 +40,9 @@ export const BALL_CONFIGS = {
   default: {
     scale: 1.0,
     mass: 1,
-    restitution: 0.75,
-    friction: 0,
-    frictionAir: 0.006,
+    restitution: 0.7,
+    friction: 0.001,
+    frictionAir: 0.001,
     slop: 0.05,
     color: '#c0c0c0', // Silver
     label: '⚡ Standard',
@@ -92,10 +92,10 @@ export class PachinkoEngine {
     // 1. Create Engine with CCD for smooth collision detection
     this.engine = Engine.create({
       enableSleeping: false,
-      positionIterations: 10,
-      velocityIterations: 10,
+      positionIterations: 6,
+      velocityIterations: 4,
     });
-    this.engine.gravity.y = 0.9;
+    this.engine.gravity.y = 2.0;
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -174,15 +174,11 @@ export class PachinkoEngine {
   }
 
   createPegGrid() {
-    const pegRadius = 7; // Slightly smaller pegs
-    const ballRadius = 12; // Base ball radius
+    const pegRadius = 8;
     const startY = 120;
-    const rows = 11; // Slightly fewer rows
-    
-    // Dynamic spacing: Gap = (BallRadius * 2) * 1.6 to prevent wedging
-    const minGap = (ballRadius * 2) * 1.6;
-    const pegSpacingX = minGap + pegRadius * 2; // ~52px
-    const pegSpacingY = minGap + pegRadius * 2; // ~52px
+    const rows = 12;
+    const pegSpacingX = 45;
+    const pegSpacingY = 45;
 
     // Create triangle grid pattern
     for (let row = 0; row < rows; row++) {
@@ -200,8 +196,8 @@ export class PachinkoEngine {
 
         const peg = Bodies.circle(x, y, pegRadius, {
           isStatic: true,
-          restitution: 0.85, // High bounce
-          friction: 0, // Zero friction - slippery pegs
+          restitution: 0.8,
+          friction: 0.01,
           label: `peg-${row}-${col}`,
           render: {
             fillStyle: colors[colorIndex],
