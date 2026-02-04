@@ -13,11 +13,15 @@ import Matter from 'matter-js';
 const { Engine, Render, Runner, Bodies, Body, Composite, Events } = Matter;
 
 // Ball configurations based on ENS class
+// Physics tuned for smooth flow: zero friction, low air friction, high bounce
 export const BALL_CONFIGS = {
   whale: {
     scale: 1.5,
     mass: 3,
-    restitution: 0.5,
+    restitution: 0.7,
+    friction: 0,
+    frictionAir: 0.008,
+    slop: 0.05,
     color: '#ffd700', // Gold
     label: '🐋 Whale',
     yieldMultiplier: 1.0,
@@ -26,6 +30,9 @@ export const BALL_CONFIGS = {
     scale: 0.7,
     mass: 1,
     restitution: 0.9,
+    friction: 0,
+    frictionAir: 0.005,
+    slop: 0.05,
     color: '#ff006e', // Neon Red
     label: '🔥 Degen',
     yieldMultiplier: 2.0,
@@ -33,7 +40,10 @@ export const BALL_CONFIGS = {
   default: {
     scale: 1.0,
     mass: 1,
-    restitution: 0.5,
+    restitution: 0.75,
+    friction: 0,
+    frictionAir: 0.006,
+    slop: 0.05,
     color: '#c0c0c0', // Silver
     label: '⚡ Standard',
     yieldMultiplier: 1.0,
@@ -68,6 +78,7 @@ export class PachinkoEngine {
     this.buckets = [];
     this.isPlaying = false;
     this.pegHitCount = 0;
+    this.stallFrames = 0; // Anti-stall tracking
     
     // Physics refs
     this.engine = null;
@@ -78,11 +89,13 @@ export class PachinkoEngine {
   }
 
   init() {
-    // 1. Create Engine
+    // 1. Create Engine with CCD for smooth collision detection
     this.engine = Engine.create({
       enableSleeping: false,
+      positionIterations: 10,
+      velocityIterations: 10,
     });
-    this.engine.gravity.y = 0.8;
+    this.engine.gravity.y = 0.9;
 
     // 2. Create Renderer
     this.render = Render.create({
@@ -103,6 +116,7 @@ export class PachinkoEngine {
     this.createBuckets();
     this.setupCollisions();
     this.setupRendering();
+    this.setupAntiStall();
 
     // 4. Start Engine
     this.runner = Runner.create();
@@ -119,8 +133,8 @@ export class PachinkoEngine {
     const wallOptions = {
       isStatic: true,
       render: { fillStyle: '#1e293b', strokeStyle: '#8b5cf6', lineWidth: 2 },
-      friction: 0.1,
-      restitution: 0.3,
+      friction: 0,
+      restitution: 0.6,
     };
 
     const walls = [
@@ -134,15 +148,41 @@ export class PachinkoEngine {
       Bodies.rectangle(this.width - 50, 60, 120, 10, { ...wallOptions, angle: -Math.PI * 0.15 }),
     ];
 
+    // Add beveled deflectors at wall-peg junctions to prevent corner wedging
+    const bevelOptions = {
+      isStatic: true,
+      render: { fillStyle: '#1e293b', strokeStyle: '#8b5cf6', lineWidth: 1 },
+      friction: 0,
+      restitution: 0.8,
+    };
+
+    // Left wall bevels - angled triangles to deflect ball away from wall
+    for (let y = 150; y < this.height - 100; y += 90) {
+      walls.push(
+        Bodies.polygon(15, y, 3, 12, { ...bevelOptions, angle: Math.PI / 6 })
+      );
+    }
+
+    // Right wall bevels
+    for (let y = 150; y < this.height - 100; y += 90) {
+      walls.push(
+        Bodies.polygon(this.width - 15, y, 3, 12, { ...bevelOptions, angle: -Math.PI / 6 })
+      );
+    }
+
     Composite.add(this.engine.world, walls);
   }
 
   createPegGrid() {
-    const pegRadius = 8;
+    const pegRadius = 7; // Slightly smaller pegs
+    const ballRadius = 12; // Base ball radius
     const startY = 120;
-    const rows = 12;
-    const pegSpacingX = 45;
-    const pegSpacingY = 45;
+    const rows = 11; // Slightly fewer rows
+    
+    // Dynamic spacing: Gap = (BallRadius * 2) * 1.6 to prevent wedging
+    const minGap = (ballRadius * 2) * 1.6;
+    const pegSpacingX = minGap + pegRadius * 2; // ~52px
+    const pegSpacingY = minGap + pegRadius * 2; // ~52px
 
     // Create triangle grid pattern
     for (let row = 0; row < rows; row++) {
@@ -160,7 +200,8 @@ export class PachinkoEngine {
 
         const peg = Bodies.circle(x, y, pegRadius, {
           isStatic: true,
-          restitution: 0.8,
+          restitution: 0.85, // High bounce
+          friction: 0, // Zero friction - slippery pegs
           label: `peg-${row}-${col}`,
           render: {
             fillStyle: colors[colorIndex],
@@ -348,6 +389,40 @@ export class PachinkoEngine {
     });
   }
 
+  setupAntiStall() {
+    // Anti-stall logic: if ball velocity is too low for too long, give it a nudge
+    Events.on(this.engine, 'beforeUpdate', () => {
+      if (!this.ball || !this.isPlaying) {
+        this.stallFrames = 0;
+        return;
+      }
+
+      const velocity = this.ball.velocity;
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+
+      // Check if ball is nearly stationary (speed < 0.3) and not at the bottom
+      if (speed < 0.3 && this.ball.position.y < this.height - 100) {
+        this.stallFrames++;
+
+        // After 45 frames (~0.75 sec) of stalling, apply a random nudge
+        if (this.stallFrames > 45) {
+          const nudgeX = (Math.random() - 0.5) * 4; // Random horizontal force
+          const nudgeY = Math.random() * 2 + 1; // Downward bias
+          
+          Body.setVelocity(this.ball, {
+            x: velocity.x + nudgeX,
+            y: velocity.y + nudgeY,
+          });
+
+          console.log('%c⚡ Anti-stall nudge applied!', 'color: #ffd700;');
+          this.stallFrames = 0;
+        }
+      } else {
+        this.stallFrames = 0;
+      }
+    });
+  }
+
   setupClickHandler() {
     this.handleClick = (e) => {
       if (this.isPlaying || this.ball) return;
@@ -377,8 +452,9 @@ export class PachinkoEngine {
     this.ball = Bodies.circle(clampedX, 20, radius, {
       label: 'ball',
       restitution: this.ballConfig.restitution,
-      friction: 0.001,
-      frictionAir: 0.01,
+      friction: this.ballConfig.friction,
+      frictionAir: this.ballConfig.frictionAir,
+      slop: this.ballConfig.slop,
       density: 0.001 * this.ballConfig.mass,
       render: {
         fillStyle: this.ballConfig.color,
@@ -390,6 +466,7 @@ export class PachinkoEngine {
     Composite.add(this.engine.world, this.ball);
     this.isPlaying = true;
     this.pegHitCount = 0;
+    this.stallFrames = 0; // Reset stall counter
     
     this.onBallDrop();
     console.log(`%c🎱 Ball dropped! (${this.ballConfig.label})`, 'color: #00f5ff;');
