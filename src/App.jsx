@@ -6,7 +6,7 @@ import { PachinkoGame } from './components/PachinkoGame.jsx';
 import { SettlementModal } from './components/SettlementModal.jsx';
 import { useYieldBallClass, formatAddress, getMockClass } from './hooks/useEnsIdentity.js';
 import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
-import { AnimatedBackground, AnimatedSquares } from './components/ui/AnimatedBackground.jsx';
+import { Galaxy } from './components/ui/Galaxy.jsx';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
 
 function App() {
@@ -42,22 +42,24 @@ function App() {
   };
 
   return (
-    <AnimatedBackground>
-      {/* Floating Squares Effect */}
-      <AnimatedSquares count={12} />
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Galaxy Background - Fixed, z-index 0, pointer-events none */}
+      <Galaxy starCount={500} rotationSpeed={0.00012} nebulaCount={4} />
       
-      {/* Header with Glassmorphism */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-cyber-darker/60 backdrop-blur-xl">
+      {/* Main Content Container - z-index 10 */}
+      <div className="relative z-10">
+        {/* Header with Glassmorphism */}
+        <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center shadow-lg shadow-neon-purple/30">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center shadow-lg shadow-neon-purple/50 animate-pulse">
               <span className="text-xl">🎰</span>
             </div>
             <div>
               <h1 className="font-arcade text-lg">
-                <ShinyText variant="pink" speed="slow">YIELD</ShinyText>
-                <ShinyText variant="cyan" speed="slow">BALL</ShinyText>
-                <span className="text-gray-500">.eth</span>
+                <ShinyText variant="silver" speed="slow">YIELD</ShinyText>
+                <ShinyText variant="silver" speed="slow">BALL</ShinyText>
+                <ShinyText variant="purple" speed="slow" className="text-sm">.eth</ShinyText>
               </h1>
               <p className="text-gray-500 text-xs font-mono">Web3 Pachinko</p>
             </div>
@@ -71,11 +73,11 @@ function App() {
         {!isPlaying ? (
           // Landing Screen
           <div className="max-w-4xl mx-auto">
-            {/* Hero */}
+            {/* Hero with Star-Shine Effect */}
             <div className="text-center mb-12">
               <h1 className="font-arcade text-4xl md:text-6xl mb-4">
-                <ShinyText variant="pink" speed="slow" className="text-4xl md:text-6xl">YIELD</ShinyText>
-                <ShinyText variant="cyan" speed="slow" className="text-4xl md:text-6xl">BALL</ShinyText>
+                <ShinyText variant="silver" speed="slow" className="text-4xl md:text-6xl">YIELD</ShinyText>
+                <ShinyText variant="silver" speed="slow" className="text-4xl md:text-6xl">BALL</ShinyText>
               </h1>
               <p className="text-gray-400 font-mono text-lg max-w-2xl mx-auto">
                 The first "No-Loss" Web3 Pachinko game. Your 100 USDC earns yield on Aave 
@@ -291,7 +293,7 @@ function App() {
 
             <button
               onClick={() => setIsPlaying(false)}
-              className="mt-6 text-gray-500 font-mono text-sm hover:text-white transition-colors"
+              className="mt-6 text-gray-500 font-mono text-sm hover:text-white transition-colors backdrop-blur-sm"
             >
               ← Back to Vault
             </button>
@@ -299,7 +301,7 @@ function App() {
         )}
       </main>
 
-      {/* Settlement Modal */}
+      {/* Settlement Modal with Deep Blur */}
       <SettlementModal
         isOpen={!!settlement}
         settlement={settlement}
@@ -309,17 +311,18 @@ function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-white/10 py-8 px-4 backdrop-blur-sm bg-cyber-darker/50">
+      <footer className="border-t border-white/10 py-8 px-4 backdrop-blur-xl bg-black/30">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-600 font-mono text-sm">
+          <ShinyText variant="silver" className="font-mono text-sm">
             YieldBall.eth © 2026 • Built with 💜 for the Web3 Gaming Hackathon
-          </p>
-          <p className="text-gray-700 font-mono text-xs mt-2">
+          </ShinyText>
+          <p className="text-gray-600 font-mono text-xs mt-2">
             Powered by Aave V3 • Yellow Network • ENS
           </p>
         </div>
       </footer>
-    </AnimatedBackground>
+      </div>
+    </div>
   );
 }
 

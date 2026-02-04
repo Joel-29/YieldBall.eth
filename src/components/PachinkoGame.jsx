@@ -1,8 +1,15 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { PachinkoEngine, BUCKETS } from '../engine/PachinkoEngine.js';
 import { signPegHit, signBallDrop, signBucketLand, closeChannel } from '../utils/yellowNetwork.js';
-import { Coins, Zap, TrendingUp, User } from 'lucide-react';
+import { Coins, Zap, TrendingUp, User, Rocket, Fish } from 'lucide-react';
 import { ShinyText, ShinyBadge, GlassmorphicCard } from './ui/ShinyText.jsx';
+
+// ENS Class icons
+const CLASS_ICONS = {
+  whale: '🐋',
+  degen: '🚀',
+  default: '⚡',
+};
 
 export function PachinkoGame({ 
   ensClass = 'default',
@@ -21,6 +28,7 @@ export function PachinkoGame({
   const [liveYield, setLiveYield] = useState(0);
   const [pegHits, setPegHits] = useState(0);
   const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [isPegHitFlash, setIsPegHitFlash] = useState(false);
 
   // Yield accumulation: $0.0001 per second while ball is in play
   useEffect(() => {
@@ -43,11 +51,20 @@ export function PachinkoGame({
     };
   }, [isPlaying, ballConfig.yieldMultiplier]);
 
-  // Handle peg hit - add $0.005 and sign state update
+  // Handle peg hit - add $0.005 and sign state update + WARP EFFECT
   const handlePegHit = useCallback((hitCount, pegId) => {
     const yieldAmount = 0.005 * ballConfig.yieldMultiplier;
     setLiveYield(prev => prev + yieldAmount);
     setPegHits(hitCount);
+    
+    // Trigger Galaxy warp speed effect
+    if (typeof window.triggerGalaxyWarp === 'function') {
+      window.triggerGalaxyWarp();
+    }
+    
+    // Flash effect for yield counter
+    setIsPegHitFlash(true);
+    setTimeout(() => setIsPegHitFlash(false), 200);
     
     // Yellow Network: Sign state update for each peg hit
     signPegHit(pegId, hitCount, yieldAmount);
@@ -124,7 +141,7 @@ export function PachinkoGame({
   }, [ensClass]);
 
   return (
-    <div className="relative">
+    <div className="relative z-10">
       {/* HUD - Top Bar with Glassmorphism */}
       <div className="absolute -top-16 left-0 right-0 flex justify-center z-20">
         <GlassmorphicCard 
@@ -136,21 +153,21 @@ export function PachinkoGame({
             <div className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-neon-cyan" />
               <span className="text-gray-400 font-mono text-sm">Principal:</span>
-              <span className="text-white font-arcade">100</span>
+              <ShinyText variant="silver" className="font-arcade">100</ShinyText>
               <span className="text-gray-500 font-mono text-xs">USDC</span>
               <span className="text-neon-green text-xs font-mono">(Locked)</span>
             </div>
             
             <div className="w-px h-6 bg-neon-purple/40" />
             
-            {/* Live Yield with Shiny Gold Effect */}
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-neon-green" />
+            {/* Live Yield with Shiny Gold Effect + Flash on hit */}
+            <div className={`flex items-center gap-2 transition-all duration-200 ${isPegHitFlash ? 'scale-110' : 'scale-100'}`}>
+              <TrendingUp className={`w-4 h-4 ${isPegHitFlash ? 'text-neon-yellow' : 'text-neon-green'}`} />
               <span className="text-gray-400 font-mono text-sm">Yield:</span>
               <ShinyText 
                 variant="gold" 
-                speed="normal"
-                className={`font-arcade text-lg ${isPlaying ? 'animate-pulse-yield' : ''}`}
+                speed={isPegHitFlash ? 'fast' : 'normal'}
+                className={`font-arcade text-lg ${isPegHitFlash ? 'animate-pulse-yield' : ''}`}
               >
                 ${liveYield.toFixed(4)}
               </ShinyText>
@@ -166,13 +183,13 @@ export function PachinkoGame({
 
       {/* ENS Identity Badge - Left with Glassmorphism */}
       <div className="absolute top-2 left-2 z-20">
-        <GlassmorphicCard className="p-3" glowColor="#8b5cf6">
+        <GlassmorphicCard className="p-3 backdrop-blur-lg bg-white/10" glowColor="#8b5cf6">
           <div className="flex items-center gap-3">
             {ensAvatar ? (
               <img 
                 src={ensAvatar} 
                 alt="ENS Avatar" 
-                className="w-10 h-10 rounded-full border-2 border-neon-purple"
+                className="w-10 h-10 rounded-full border-2 border-neon-purple shadow-neon-purple"
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-neon-purple/20 flex items-center justify-center border-2 border-neon-purple/50">
@@ -181,28 +198,30 @@ export function PachinkoGame({
             )}
             <div>
               <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">Player</p>
-              <p className="text-neon-purple font-mono text-sm">
+              <ShinyText variant="purple" className="font-mono text-sm">
                 {ensName || 'Anonymous'}
-              </p>
+              </ShinyText>
             </div>
           </div>
         </GlassmorphicCard>
       </div>
 
-      {/* ENS Class Badge - Right with Shiny Neon Text */}
+      {/* ENS Class Badge - Right with Shiny Neon Text & Icon */}
       <div className="absolute top-2 right-2 z-20">
-        <GlassmorphicCard className="p-3 text-right" glowColor={ballConfig.color}>
-          <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">ENS Class</p>
-          <ShinyText 
-            variant={ensClass === 'whale' ? 'gold' : ensClass === 'degen' ? 'pink' : 'cyan'}
-            speed="fast"
-            className="font-arcade text-sm block"
-          >
-            {ballConfig.label}
-          </ShinyText>
-          <p className="text-xs text-gray-400 font-mono mt-1">
-            {ballConfig.description}
-          </p>
+        <GlassmorphicCard className="p-3 text-right backdrop-blur-lg bg-white/10" glowColor={ballConfig.color}>
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-2xl">{CLASS_ICONS[ensClass] || CLASS_ICONS.default}</span>
+            <div>
+              <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">ENS Class</p>
+              <ShinyText 
+                variant={ensClass === 'whale' ? 'gold' : ensClass === 'degen' ? 'pink' : 'cyan'}
+                speed="fast"
+                className="font-arcade text-sm block"
+              >
+                {ensClass.toUpperCase()}
+              </ShinyText>
+            </div>
+          </div>
         </GlassmorphicCard>
       </div>
 

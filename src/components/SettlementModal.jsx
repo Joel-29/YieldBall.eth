@@ -174,20 +174,25 @@ export function SettlementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      {/* Backdrop with heavy blur */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-xl" />
+      {/* Deep Space Backdrop - Heavy blur for floating-in-space effect */}
+      <div 
+        className="absolute inset-0 backdrop-blur-2xl"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.95) 100%)',
+        }}
+      />
       
       {/* Modal with slide-up animation */}
       <div className="relative w-full max-w-md animate-slide-up">
-        {/* Glow effect */}
+        {/* Cosmic Glow effect */}
         <div 
-          className="absolute -inset-2 rounded-3xl blur-2xl opacity-40 animate-bucket-glow"
-          style={{ background: `linear-gradient(135deg, ${bucket.color}, #8b5cf6)` }}
+          className="absolute -inset-4 rounded-3xl blur-3xl opacity-30 animate-bucket-glow"
+          style={{ background: `linear-gradient(135deg, ${bucket.color}, #8b5cf6, #00f5ff)` }}
         />
         
-        {/* Content */}
+        {/* Content with Glass Effect */}
         <GlassmorphicCard 
-          className="p-8"
+          className="p-8 backdrop-blur-xl bg-black/40 border-white/20"
           glowColor={bucket.color}
         >
           
