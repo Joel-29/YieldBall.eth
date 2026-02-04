@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { PachinkoEngine, BUCKETS } from '../engine/PachinkoEngine.js';
 import { signPegHit, signBallDrop, signBucketLand, closeChannel } from '../utils/yellowNetwork.js';
 import { Coins, Zap, TrendingUp, User } from 'lucide-react';
+import { ShinyText, ShinyBadge, GlassmorphicCard } from './ui/ShinyText.jsx';
 
 export function PachinkoGame({ 
   ensClass = 'default',
@@ -124,41 +125,48 @@ export function PachinkoGame({
 
   return (
     <div className="relative">
-      {/* HUD - Top Bar */}
+      {/* HUD - Top Bar with Glassmorphism */}
       <div className="absolute -top-16 left-0 right-0 flex justify-center z-20">
-        <div className="bg-cyber-darker/95 backdrop-blur-md border-2 border-neon-purple/60 rounded-full px-6 py-3 shadow-lg shadow-neon-purple/20">
+        <GlassmorphicCard 
+          className="px-6 py-3 rounded-full"
+          glowColor="#8b5cf6"
+        >
           <div className="flex items-center gap-6">
             {/* Principal */}
             <div className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-neon-cyan" />
-              <span className="text-gray-400 font-cyber text-sm">Principal:</span>
+              <span className="text-gray-400 font-mono text-sm">Principal:</span>
               <span className="text-white font-arcade">100</span>
-              <span className="text-gray-500 font-cyber text-xs">USDC</span>
-              <span className="text-neon-green text-xs font-cyber">(Locked)</span>
+              <span className="text-gray-500 font-mono text-xs">USDC</span>
+              <span className="text-neon-green text-xs font-mono">(Locked)</span>
             </div>
             
             <div className="w-px h-6 bg-neon-purple/40" />
             
-            {/* Live Yield */}
+            {/* Live Yield with Shiny Gold Effect */}
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-neon-green" />
-              <span className="text-gray-400 font-cyber text-sm">Yield:</span>
-              <span className="text-neon-cyan font-arcade text-lg">
-                ${liveYield.toFixed(6)}
-              </span>
+              <span className="text-gray-400 font-mono text-sm">Yield:</span>
+              <ShinyText 
+                variant="gold" 
+                speed="normal"
+                className={`font-arcade text-lg ${isPlaying ? 'animate-pulse-yield' : ''}`}
+              >
+                ${liveYield.toFixed(4)}
+              </ShinyText>
               {ballConfig.yieldMultiplier > 1 && (
-                <span className="text-neon-pink text-xs font-cyber font-bold bg-neon-pink/20 px-2 py-0.5 rounded">
+                <ShinyBadge variant="pink" glowColor="#ff006e">
                   {ballConfig.yieldMultiplier}x
-                </span>
+                </ShinyBadge>
               )}
             </div>
           </div>
-        </div>
+        </GlassmorphicCard>
       </div>
 
-      {/* ENS Identity Badge - Left */}
+      {/* ENS Identity Badge - Left with Glassmorphism */}
       <div className="absolute top-2 left-2 z-20">
-        <div className="bg-cyber-darker/90 backdrop-blur-sm border border-neon-purple/50 rounded-lg p-3">
+        <GlassmorphicCard className="p-3" glowColor="#8b5cf6">
           <div className="flex items-center gap-3">
             {ensAvatar ? (
               <img 
@@ -172,69 +180,91 @@ export function PachinkoGame({
               </div>
             )}
             <div>
-              <p className="text-xs text-gray-500 font-cyber">Player</p>
-              <p className="text-neon-purple font-cyber text-sm">
+              <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">Player</p>
+              <p className="text-neon-purple font-mono text-sm">
                 {ensName || 'Anonymous'}
               </p>
             </div>
           </div>
-        </div>
+        </GlassmorphicCard>
       </div>
 
-      {/* Ball Class Badge - Right */}
+      {/* ENS Class Badge - Right with Shiny Neon Text */}
       <div className="absolute top-2 right-2 z-20">
-        <div className="bg-cyber-darker/90 backdrop-blur-sm border border-neon-pink/50 rounded-lg p-3 text-right">
-          <p className="text-xs text-gray-500 font-cyber">ENS Class</p>
-          <p className="font-arcade text-sm" style={{ color: ballConfig.color }}>
+        <GlassmorphicCard className="p-3 text-right" glowColor={ballConfig.color}>
+          <p className="text-xs text-gray-500 font-mono uppercase tracking-wider">ENS Class</p>
+          <ShinyText 
+            variant={ensClass === 'whale' ? 'gold' : ensClass === 'degen' ? 'pink' : 'cyan'}
+            speed="fast"
+            className="font-arcade text-sm block"
+          >
             {ballConfig.label}
-          </p>
-          <p className="text-xs text-gray-400 font-cyber mt-1">
+          </ShinyText>
+          <p className="text-xs text-gray-400 font-mono mt-1">
             {ballConfig.description}
           </p>
-        </div>
+        </GlassmorphicCard>
       </div>
 
       {/* Peg Hit Counter */}
       {isPlaying && (
         <div className="absolute top-20 left-2 z-20">
-          <div className="bg-cyber-darker/90 backdrop-blur-sm border border-neon-cyan/50 rounded-lg p-2">
+          <GlassmorphicCard className="p-2" glowColor="#fbbf24">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-neon-yellow" />
-              <span className="text-gray-400 font-cyber text-xs">Bounces:</span>
-              <span className="text-neon-yellow font-arcade">{pegHits}</span>
+              <span className="text-gray-400 font-mono text-xs">Bounces:</span>
+              <ShinyText variant="gold" speed="fast" className="font-arcade">
+                {pegHits}
+              </ShinyText>
             </div>
-          </div>
+          </GlassmorphicCard>
         </div>
       )}
 
-      {/* Game Canvas */}
+      {/* Game Canvas with transparent background */}
       <div 
         ref={containerRef}
-        className="rounded-xl overflow-hidden border-4 border-neon-purple/50 shadow-lg shadow-neon-purple/20"
+        className="rounded-xl overflow-hidden border-2 border-white/10 shadow-glass"
         style={{ 
           width: 500, 
           height: 700,
-          background: 'linear-gradient(180deg, #020617 0%, #0f172a 100%)',
+          background: 'linear-gradient(180deg, rgba(2,6,23,0.9) 0%, rgba(15,23,42,0.9) 100%)',
           cursor: isPlaying ? 'default' : 'pointer',
         }}
       />
 
-      {/* Bucket Labels */}
-      <div className="flex mt-2">
+      {/* Bucket Labels with Animated Glow */}
+      <div className="flex mt-3 gap-1">
         {BUCKETS.map((bucket, i) => (
           <div 
             key={i}
-            className="flex-1 text-center py-2 rounded-lg mx-0.5"
+            className="relative flex-1 text-center py-2 rounded-lg overflow-hidden"
             style={{ 
-              backgroundColor: bucket.color + '20',
-              borderColor: bucket.color,
-              borderWidth: 1,
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              border: `1px solid ${bucket.color}40`,
             }}
           >
-            <p className="font-cyber text-xs" style={{ color: bucket.color }}>
-              {bucket.label}
-            </p>
-            <p className="font-arcade text-sm text-white">{bucket.multiplier}x</p>
+            {/* Pulsing glow background */}
+            <div 
+              className="absolute inset-0 animate-bucket-glow"
+              style={{ 
+                background: `radial-gradient(ellipse at center, ${bucket.color}30 0%, transparent 70%)`,
+              }}
+            />
+            
+            {/* Bucket content */}
+            <div className="relative z-10">
+              <p className="font-mono text-xs uppercase tracking-wider" style={{ color: bucket.color }}>
+                {bucket.label}
+              </p>
+              <ShinyText 
+                variant={bucket.multiplier >= 5 ? 'pink' : bucket.multiplier >= 2 ? 'gold' : 'silver'}
+                speed="normal"
+                className="font-arcade text-sm"
+              >
+                {bucket.multiplier}x
+              </ShinyText>
+            </div>
           </div>
         ))}
       </div>

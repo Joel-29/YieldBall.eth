@@ -97,7 +97,7 @@ export class PachinkoEngine {
     });
     this.engine.gravity.y = 0.9;
 
-    // 2. Create Renderer
+    // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
       element: this.container,
       engine: this.engine,
@@ -105,7 +105,7 @@ export class PachinkoEngine {
         width: this.width,
         height: this.height,
         wireframes: false,
-        background: '#020617',
+        background: 'transparent',
         pixelRatio: window.devicePixelRatio || 1,
       },
     });

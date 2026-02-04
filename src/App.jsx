@@ -6,6 +6,8 @@ import { PachinkoGame } from './components/PachinkoGame.jsx';
 import { SettlementModal } from './components/SettlementModal.jsx';
 import { useYieldBallClass, formatAddress, getMockClass } from './hooks/useEnsIdentity.js';
 import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
+import { AnimatedBackground, AnimatedSquares } from './components/ui/AnimatedBackground.jsx';
+import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
 
 function App() {
   const { isConnected, address } = useAccount();
@@ -40,9 +42,12 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-dark cyber-grid">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-800/50 bg-cyber-dark/80 backdrop-blur-xl">
+    <AnimatedBackground>
+      {/* Floating Squares Effect */}
+      <AnimatedSquares count={12} />
+      
+      {/* Header with Glassmorphism */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-cyber-darker/60 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center shadow-lg shadow-neon-purple/30">
@@ -50,11 +55,11 @@ function App() {
             </div>
             <div>
               <h1 className="font-arcade text-lg">
-                <span className="text-neon-pink">YIELD</span>
-                <span className="text-neon-cyan">BALL</span>
+                <ShinyText variant="pink" speed="slow">YIELD</ShinyText>
+                <ShinyText variant="cyan" speed="slow">BALL</ShinyText>
                 <span className="text-gray-500">.eth</span>
               </h1>
-              <p className="text-gray-500 text-xs font-cyber">Web3 Pachinko</p>
+              <p className="text-gray-500 text-xs font-mono">Web3 Pachinko</p>
             </div>
           </div>
           <ConnectButton />
@@ -69,10 +74,10 @@ function App() {
             {/* Hero */}
             <div className="text-center mb-12">
               <h1 className="font-arcade text-4xl md:text-6xl mb-4">
-                <span className="text-neon-pink">YIELD</span>
-                <span className="text-neon-cyan">BALL</span>
+                <ShinyText variant="pink" speed="slow" className="text-4xl md:text-6xl">YIELD</ShinyText>
+                <ShinyText variant="cyan" speed="slow" className="text-4xl md:text-6xl">BALL</ShinyText>
               </h1>
-              <p className="text-gray-400 font-cyber text-lg max-w-2xl mx-auto">
+              <p className="text-gray-400 font-mono text-lg max-w-2xl mx-auto">
                 The first "No-Loss" Web3 Pachinko game. Your 100 USDC earns yield on Aave 
                 while you play. ENS identity determines your ball physics!
               </p>
@@ -82,11 +87,11 @@ function App() {
             <div className="mb-8">
               <button
                 onClick={() => setShowHowItWorks(!showHowItWorks)}
-                className="w-full bg-cyber-darker/50 border border-neon-purple/30 rounded-xl p-4 flex items-center justify-between hover:border-neon-purple/50 transition-all"
+                className="w-full backdrop-blur-md bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:border-neon-purple/50 transition-all"
               >
                 <div className="flex items-center gap-3">
                   <Info className="w-5 h-5 text-neon-purple" />
-                  <span className="font-cyber text-white">How it Works</span>
+                  <span className="font-mono text-white">How it Works</span>
                 </div>
                 {showHowItWorks ? (
                   <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -96,42 +101,42 @@ function App() {
               </button>
 
               {showHowItWorks && (
-                <div className="mt-4 grid md:grid-cols-3 gap-4">
-                  <div className="bg-cyber-darker/50 border border-neon-cyan/30 rounded-xl p-6">
+                <div className="mt-4 grid md:grid-cols-3 gap-4 animate-slide-down">
+                  <GlassmorphicCard className="p-6" glowColor="#00f5ff">
                     <Coins className="w-8 h-8 text-neon-cyan mb-3" />
-                    <h3 className="font-arcade text-sm text-neon-cyan mb-2">AAVE VAULT</h3>
-                    <p className="text-gray-400 text-sm font-cyber">
+                    <ShinyText variant="cyan" className="font-arcade text-sm block mb-2">AAVE VAULT</ShinyText>
+                    <p className="text-gray-400 text-sm font-mono">
                       Your 100 USDC is earning interest on Aave V3 while you play.
                     </p>
-                  </div>
+                  </GlassmorphicCard>
                   
-                  <div className="bg-cyber-darker/50 border border-neon-pink/30 rounded-xl p-6">
+                  <GlassmorphicCard className="p-6" glowColor="#ff006e">
                     <Fingerprint className="w-8 h-8 text-neon-pink mb-3" />
-                    <h3 className="font-arcade text-sm text-neon-pink mb-2">ENS IDENTITY</h3>
-                    <p className="text-gray-400 text-sm font-cyber">
+                    <ShinyText variant="pink" className="font-arcade text-sm block mb-2">ENS IDENTITY</ShinyText>
+                    <p className="text-gray-400 text-sm font-mono">
                       Your ENS record sets your ball physics. Set yieldball.class to customize!
                     </p>
-                  </div>
+                  </GlassmorphicCard>
                   
-                  <div className="bg-cyber-darker/50 border border-neon-yellow/30 rounded-xl p-6">
+                  <GlassmorphicCard className="p-6" glowColor="#fbbf24">
                     <Zap className="w-8 h-8 text-neon-yellow mb-3" />
-                    <h3 className="font-arcade text-sm text-neon-yellow mb-2">YELLOW NETWORK</h3>
-                    <p className="text-gray-400 text-sm font-cyber">
+                    <ShinyText variant="gold" className="font-arcade text-sm block mb-2">YELLOW NETWORK</ShinyText>
+                    <p className="text-gray-400 text-sm font-mono">
                       Every bounce is a signed state update via Yellow Network.
                     </p>
-                  </div>
+                  </GlassmorphicCard>
                 </div>
               )}
             </div>
 
             {/* ENS Class Preview */}
-            <div className="bg-cyber-darker/50 border border-neon-purple/30 rounded-xl p-6 mb-8">
+            <GlassmorphicCard className="p-6 mb-8" glowColor="#8b5cf6">
               <h3 className="font-arcade text-sm text-gray-400 mb-4">YOUR BALL</h3>
               
               <div className="flex items-center gap-6">
                 {/* Ball Preview */}
                 <div 
-                  className="w-20 h-20 rounded-full flex items-center justify-center"
+                  className="w-20 h-20 rounded-full flex items-center justify-center animate-pulse"
                   style={{ 
                     backgroundColor: effectiveBallConfig.color,
                     boxShadow: `0 0 30px ${effectiveBallConfig.color}80`,
@@ -141,30 +146,34 @@ function App() {
                 </div>
 
                 <div className="flex-1">
-                  <p className="font-arcade text-lg" style={{ color: effectiveBallConfig.color }}>
+                  <ShinyText 
+                    variant={effectiveClass === 'whale' ? 'gold' : effectiveClass === 'degen' ? 'pink' : 'silver'}
+                    speed="fast"
+                    className="font-arcade text-lg block"
+                  >
                     {effectiveBallConfig.label}
-                  </p>
-                  <p className="text-gray-400 font-cyber text-sm mt-1">
+                  </ShinyText>
+                  <p className="text-gray-400 font-mono text-sm mt-1">
                     {effectiveBallConfig.description}
                   </p>
                   
                   <div className="flex gap-4 mt-3">
                     <div>
-                      <span className="text-gray-500 text-xs font-cyber">Scale:</span>
-                      <span className="text-white font-cyber ml-1">{effectiveBallConfig.scale}x</span>
+                      <span className="text-gray-500 text-xs font-mono">Scale:</span>
+                      <span className="text-white font-mono ml-1">{effectiveBallConfig.scale}x</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-xs font-cyber">Mass:</span>
-                      <span className="text-white font-cyber ml-1">{effectiveBallConfig.mass}</span>
+                      <span className="text-gray-500 text-xs font-mono">Mass:</span>
+                      <span className="text-white font-mono ml-1">{effectiveBallConfig.mass}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-xs font-cyber">Bounce:</span>
-                      <span className="text-white font-cyber ml-1">{effectiveBallConfig.restitution}</span>
+                      <span className="text-gray-500 text-xs font-mono">Bounce:</span>
+                      <span className="text-white font-mono ml-1">{effectiveBallConfig.restitution}</span>
                     </div>
                     {effectiveBallConfig.yieldMultiplier > 1 && (
                       <div>
-                        <span className="text-gray-500 text-xs font-cyber">Yield:</span>
-                        <span className="text-neon-pink font-cyber ml-1">{effectiveBallConfig.yieldMultiplier}x</span>
+                        <span className="text-gray-500 text-xs font-mono">Yield:</span>
+                        <ShinyText variant="pink" className="font-mono ml-1">{effectiveBallConfig.yieldMultiplier}x</ShinyText>
                       </div>
                     )}
                   </div>
@@ -179,15 +188,15 @@ function App() {
                       <img src={ensAvatar} alt="ENS Avatar" className="w-8 h-8 rounded-full" />
                     )}
                     <div>
-                      <p className="text-neon-purple font-cyber text-sm">{ensName}</p>
-                      <p className="text-gray-500 text-xs font-cyber">
+                      <p className="text-neon-purple font-mono text-sm">{ensName}</p>
+                      <p className="text-gray-500 text-xs font-mono">
                         yieldball.class: {yieldballClass || 'not set'}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
+            </GlassmorphicCard>
 
             {/* ENS Class Guide */}
             <div className="grid grid-cols-3 gap-4 mb-8">
@@ -243,16 +252,16 @@ function App() {
             {/* Start Button */}
             <div className="flex justify-center">
               {isConnected ? (
-                <button
+                <ShinyButton
                   onClick={handleStartGame}
-                  className="group relative px-12 py-4 bg-gradient-to-r from-neon-pink to-neon-purple rounded-xl font-arcade text-white text-lg overflow-hidden hover:scale-105 transition-all duration-300 shadow-lg shadow-neon-purple/40"
+                  variant="purple"
+                  className="text-lg"
                 >
-                  <span className="relative z-10">DEPOSIT 100 USDC & PLAY</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-neon-purple to-neon-pink opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+                  DEPOSIT 100 USDC & PLAY
+                </ShinyButton>
               ) : (
                 <div className="text-center">
-                  <p className="text-gray-400 font-cyber mb-4">Connect wallet to play</p>
+                  <p className="text-gray-400 font-mono mb-4">Connect wallet to play</p>
                   <ConnectButton />
                 </div>
               )}
@@ -263,11 +272,11 @@ function App() {
           <div className="flex flex-col items-center">
             <div className="mb-4 text-center">
               <h2 className="font-arcade text-xl">
-                <span className="text-neon-pink">GAME</span>
+                <ShinyText variant="pink" speed="fast">GAME</ShinyText>
                 {' '}
-                <span className="text-neon-cyan">ON</span>
+                <ShinyText variant="cyan" speed="fast">ON</ShinyText>
               </h2>
-              <p className="text-gray-500 font-cyber text-xs mt-1">
+              <p className="text-gray-500 font-mono text-xs mt-1">
                 Click at the top to drop your ball!
               </p>
             </div>
@@ -282,7 +291,7 @@ function App() {
 
             <button
               onClick={() => setIsPlaying(false)}
-              className="mt-6 text-gray-500 font-cyber text-sm hover:text-white transition-colors"
+              className="mt-6 text-gray-500 font-mono text-sm hover:text-white transition-colors"
             >
               ← Back to Vault
             </button>
@@ -300,17 +309,17 @@ function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 px-4">
+      <footer className="border-t border-white/10 py-8 px-4 backdrop-blur-sm bg-cyber-darker/50">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-600 font-cyber text-sm">
+          <p className="text-gray-600 font-mono text-sm">
             YieldBall.eth © 2026 • Built with 💜 for the Web3 Gaming Hackathon
           </p>
-          <p className="text-gray-700 font-cyber text-xs mt-2">
+          <p className="text-gray-700 font-mono text-xs mt-2">
             Powered by Aave V3 • Yellow Network • ENS
           </p>
         </div>
       </footer>
-    </div>
+    </AnimatedBackground>
   );
 }
 

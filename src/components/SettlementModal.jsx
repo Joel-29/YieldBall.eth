@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { CheckCircle, Coins, TrendingUp, Zap, ArrowRight, Wallet, Loader2, ExternalLink, AlertCircle, Gift } from 'lucide-react';
+import { ShinyText, ShinyButton, GlassmorphicCard } from './ui/ShinyText.jsx';
 import { 
   VAULT_ADDRESS, 
   VAULT_ABI, 
@@ -172,30 +173,33 @@ export function SettlementModal({
   const formattedYbtBalance = ybtBalance ? formatUnits(ybtBalance, 18) : '0';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      {/* Backdrop with heavy blur */}
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-xl" />
       
-      {/* Modal */}
-      <div className="relative w-full max-w-md">
+      {/* Modal with slide-up animation */}
+      <div className="relative w-full max-w-md animate-slide-up">
         {/* Glow effect */}
         <div 
-          className="absolute -inset-2 rounded-3xl blur-2xl opacity-50 animate-pulse"
+          className="absolute -inset-2 rounded-3xl blur-2xl opacity-40 animate-bucket-glow"
           style={{ background: `linear-gradient(135deg, ${bucket.color}, #8b5cf6)` }}
         />
         
         {/* Content */}
-        <div className="relative bg-gradient-to-b from-cyber-dark/95 to-cyber-darker/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-8 shadow-2xl">
+        <GlassmorphicCard 
+          className="p-8"
+          glowColor={bucket.color}
+        >
           
           {/* Off-Chain Success Banner */}
           <div className="bg-neon-yellow/20 border-2 border-neon-yellow rounded-xl p-4 mb-6">
             <div className="flex items-center justify-center gap-3">
               <CheckCircle className="w-6 h-6 text-neon-yellow" />
-              <span className="font-arcade text-lg text-neon-yellow">
+              <ShinyText variant="gold" speed="normal" className="font-arcade text-lg">
                 Yield Secured Off-Chain!
-              </span>
+              </ShinyText>
             </div>
-            <p className="text-center text-gray-400 font-cyber text-xs mt-2">
+            <p className="text-center text-gray-400 font-mono text-xs mt-2">
               Your session has been signed via Yellow Network State Channel
             </p>
           </div>
@@ -203,52 +207,58 @@ export function SettlementModal({
           {/* Bucket Badge */}
           <div className="flex justify-center mb-4">
             <div 
-              className="px-4 py-2 rounded-full flex items-center gap-2"
+              className="px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md"
               style={{ 
-                backgroundColor: bucket.color + '30',
+                backgroundColor: bucket.color + '20',
                 borderColor: bucket.color,
                 borderWidth: 2,
               }}
             >
-              <span className="font-cyber text-sm" style={{ color: bucket.color }}>
+              <ShinyText 
+                variant={multiplier >= 5 ? 'pink' : multiplier >= 2 ? 'gold' : 'silver'} 
+                speed="fast"
+                className="font-mono text-sm"
+              >
                 Landed in {bucket.label} ({multiplier}x)
-              </span>
+              </ShinyText>
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-white/5 rounded-lg p-2 text-center">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 text-center border border-white/10">
               <Zap className="w-4 h-4 mx-auto mb-1 text-neon-yellow" />
-              <p className="text-gray-500 text-xs font-cyber">Bounces</p>
-              <p className="text-white font-arcade text-sm">{pegHits}</p>
+              <p className="text-gray-500 text-xs font-mono">Bounces</p>
+              <ShinyText variant="gold" className="font-arcade text-sm">{pegHits}</ShinyText>
             </div>
-            <div className="bg-white/5 rounded-lg p-2 text-center">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 text-center border border-white/10">
               <TrendingUp className="w-4 h-4 mx-auto mb-1 text-neon-green" />
-              <p className="text-gray-500 text-xs font-cyber">Base Yield</p>
-              <p className="text-white font-cyber text-sm">${baseYield.toFixed(4)}</p>
+              <p className="text-gray-500 text-xs font-mono">Base Yield</p>
+              <ShinyText variant="cyan" className="font-mono text-sm">${baseYield.toFixed(4)}</ShinyText>
             </div>
-            <div className="bg-white/5 rounded-lg p-2 text-center">
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 text-center border border-white/10">
               <Coins className="w-4 h-4 mx-auto mb-1 text-neon-cyan" />
-              <p className="text-gray-500 text-xs font-cyber">Time</p>
-              <p className="text-white font-cyber text-sm">{Math.floor(sessionDuration)}s</p>
+              <p className="text-gray-500 text-xs font-mono">Time</p>
+              <p className="text-white font-mono text-sm">{Math.floor(sessionDuration)}s</p>
             </div>
           </div>
 
           {/* Payout Breakdown */}
-          <div className="bg-white/5 rounded-xl p-4 mb-4">
+          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 mb-4 border border-white/10">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-400 font-cyber text-sm">Principal (Aave V3)</span>
-              <span className="text-white font-cyber">${principal.toFixed(2)}</span>
+              <span className="text-gray-400 font-mono text-sm">Principal (Aave V3)</span>
+              <span className="text-white font-mono">${principal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-gray-400 font-cyber text-sm">Yield Earned</span>
-              <span className="text-neon-cyan font-cyber">+${finalYield.toFixed(6)}</span>
+              <span className="text-gray-400 font-mono text-sm">Yield Earned</span>
+              <ShinyText variant="cyan" className="font-mono">+${finalYield.toFixed(6)}</ShinyText>
             </div>
             <div className="border-t border-gray-700 pt-2 mt-2">
               <div className="flex justify-between items-center">
-                <span className="text-white font-cyber font-bold">Total Payout</span>
-                <span className="text-neon-pink font-arcade text-xl">${totalPayout.toFixed(6)}</span>
+                <span className="text-white font-mono font-bold">Total Payout</span>
+                <ShinyText variant="gold" speed="fast" className="font-arcade text-xl">
+                  ${totalPayout.toFixed(6)}
+                </ShinyText>
               </div>
             </div>
           </div>
@@ -442,11 +452,11 @@ export function SettlementModal({
           {/* Network Badge */}
           <div className="mt-6 flex items-center justify-center gap-2">
             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <p className="text-gray-500 font-cyber text-xs">
+            <p className="text-gray-500 font-mono text-xs">
               Base Sepolia • Yellow Network State Channel
             </p>
           </div>
-        </div>
+        </GlassmorphicCard>
       </div>
     </div>
   );
