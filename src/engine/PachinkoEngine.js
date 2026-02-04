@@ -89,13 +89,14 @@ export class PachinkoEngine {
   }
 
   init() {
-    // 1. Create Engine with CCD for smooth collision detection
+    // 1. Create Engine with HIGH SPEED physics
     this.engine = Engine.create({
       enableSleeping: false,
-      positionIterations: 6,
-      velocityIterations: 4,
+      positionIterations: 10,
+      velocityIterations: 10,
     });
-    this.engine.gravity.y = 2.0;
+    this.engine.gravity.y = 1.5;
+    this.engine.gravity.scale = 0.002; // Stronger gravity pull
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -449,23 +450,28 @@ export class PachinkoEngine {
       label: 'ball',
       restitution: this.ballConfig.restitution,
       friction: this.ballConfig.friction,
-      frictionAir: this.ballConfig.frictionAir,
+      frictionAir: 0.0008, // Very low air friction for fast movement
       slop: this.ballConfig.slop,
-      density: 0.001 * this.ballConfig.mass,
+      density: 0.002 * this.ballConfig.mass, // Heavier ball
       render: {
         fillStyle: this.ballConfig.color,
         strokeStyle: '#fff',
         lineWidth: 2,
+        // Neon glow effect handled in custom render
       },
     });
 
     Composite.add(this.engine.world, this.ball);
+    
+    // INSTANT DOWNWARD SHOT - gives the ball immediate velocity
+    Body.setVelocity(this.ball, { x: 0, y: 12 });
+    
     this.isPlaying = true;
     this.pegHitCount = 0;
     this.stallFrames = 0; // Reset stall counter
     
     this.onBallDrop();
-    console.log(`%c🎱 Ball dropped! (${this.ballConfig.label})`, 'color: #00f5ff;');
+    console.log(`%c🎱 Ball dropped with velocity! (${this.ballConfig.label})`, 'color: #00f5ff;');
   }
 
   // Update ENS class and reconfigure ball

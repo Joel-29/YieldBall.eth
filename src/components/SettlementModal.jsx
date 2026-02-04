@@ -174,12 +174,9 @@ export function SettlementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      {/* Deep Space Backdrop - Heavy blur for floating-in-space effect */}
+      {/* Transparent backdrop - Galaxy visible behind with heavy blur */}
       <div 
-        className="absolute inset-0 backdrop-blur-2xl"
-        style={{
-          background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.95) 100%)',
-        }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-xl"
       />
       
       {/* Modal with slide-up animation */}
