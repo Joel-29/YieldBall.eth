@@ -25,7 +25,7 @@ export const config = getDefaultConfig({
 // MOCK TOKEN (for demo visuals only)
 // ============================================================
 
-// Mock USDC (can be same as vault for now if not used)
+// Mock USDC (not actually used)
 export const USDC_ADDRESS_BASE_SEPOLIA =
   '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
@@ -35,23 +35,22 @@ export const USDC_ADDRESS_BASE_SEPOLIA =
 
 // YieldBall Vault / Game logic contract
 export const VAULT_ADDRESS =
-  '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+  '0x7190A1d20B27aAa60C89B70801080386c04f534b';
 
-// YieldBall Game Contract (same as vault if combined)
+// YieldBall Game Contract
 export const GAME_CONTRACT_ADDRESS =
-  '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+  '0x7190A1d20B27aAa60C89B70801080386c04f534b';
 
 // ============================================================
 // YIELDBALL ERC-20 TOKEN
 // ============================================================
 
-//  REAL ERC-20 Reward Token (YBT)
+// REAL ERC-20 Reward Token (from Remix: YieldBallToken)
 export const YBT_TOKEN_ADDRESS =
-  '0x8bcf113a4A93291Ce6c336162DbA19b9F257CbBC';
+  '0x9BF5552ad0C7D27F39Dff98DCefD74a1CC31C765';
 
-// Reward amount shown in UI
+// Reward amount shown in UI (10 YBT)
 export const REWARD_AMOUNT_DISPLAY = '10';
-
 
 // Chain ID for Base Sepolia
 export const TARGET_CHAIN_ID = baseSepolia.id;
