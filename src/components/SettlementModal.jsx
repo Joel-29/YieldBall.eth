@@ -6,11 +6,10 @@ import {
   VAULT_ADDRESS, 
   VAULT_ABI, 
   TARGET_CHAIN_ID,
-  GAME_CONTRACT_ADDRESS,
-  GAME_ABI,
   YBT_TOKEN_ADDRESS,
   YBT_ABI,
   REWARD_AMOUNT_DISPLAY,
+  REWARD_AMOUNT_WEI,
 } from '../config/wagmi.js';
 
 export function SettlementModal({ 
@@ -70,8 +69,7 @@ export function SettlementModal({
     enabled: !!YBT_TOKEN_ADDRESS && !!address,
   });
 
-  // Check if game contract is configured
-  const isGameConfigured = GAME_CONTRACT_ADDRESS && GAME_CONTRACT_ADDRESS !== null;
+  // Check if token contract is configured (we now call token directly, not game contract)
   const isTokenConfigured = YBT_TOKEN_ADDRESS && YBT_TOKEN_ADDRESS !== null;
 
   // Handle successful reward claim
@@ -79,6 +77,7 @@ export function SettlementModal({
     if (isRewardConfirmed && !rewardClaimed) {
       setRewardClaimed(true);
       refetchBalance?.();
+      console.log('%c✅ YBT Tokens Minted Successfully!', 'color: #22c55e; font-weight: bold; font-size: 14px;');
     }
   }, [isRewardConfirmed, rewardClaimed, refetchBalance]);
 
@@ -112,31 +111,48 @@ export function SettlementModal({
     });
   };
 
-  // Claim YBT reward tokens
+  // Claim YBT reward tokens - DIRECT MINT to user's wallet
   const handleClaimReward = async () => {
-    if (!isGameConfigured || !address) {
-      console.warn('Game contract not configured or no address');
+    if (!isTokenConfigured) {
+      console.error('❌ YBT Token not configured. Set YBT_TOKEN_ADDRESS in wagmi.js');
+      return;
+    }
+    
+    if (!address) {
+      console.error('❌ No wallet connected');
       return;
     }
 
-    // Check if on correct chain
+    // Check if on correct chain (Base Sepolia)
     if (chainId !== TARGET_CHAIN_ID) {
+      console.log('🔄 Switching to Base Sepolia...');
       try {
         await switchChain({ chainId: TARGET_CHAIN_ID });
       } catch (err) {
-        console.error('Failed to switch chain:', err);
+        console.error('❌ Failed to switch chain:', err);
         return;
       }
     }
 
-    // Call game contract to reward winner
-    writeReward({
-      address: GAME_CONTRACT_ADDRESS,
-      abi: GAME_ABI,
-      functionName: 'rewardWinner',
-      args: [address],
-      chainId: TARGET_CHAIN_ID,
-    });
+    console.log('%c🎮 Claiming YBT Reward...', 'color: #fbbf24; font-weight: bold;');
+    console.log('Token Address:', YBT_TOKEN_ADDRESS);
+    console.log('Recipient:', address);
+    console.log('Amount:', REWARD_AMOUNT_DISPLAY, 'YBT');
+
+    // DIRECT MINT: Call token contract's mint() function directly
+    // This sends 10 YBT (10 * 10^18 wei) to the connected wallet
+    try {
+      writeReward({
+        address: YBT_TOKEN_ADDRESS,
+        abi: YBT_ABI,
+        functionName: 'mint',
+        args: [address, BigInt(REWARD_AMOUNT_WEI)],
+        chainId: TARGET_CHAIN_ID,
+      });
+    } catch (err) {
+      console.error('❌ Mint transaction failed:', err);
+      console.error('Error details:', err.message);
+    }
   };
 
   // Handle successful transaction
@@ -288,9 +304,9 @@ export function SettlementModal({
           )}
 
           {/* ============================================================ */}
-          {/* DEMO TOKEN REWARD SECTION */}
+          {/* DEMO TOKEN REWARD SECTION - Direct Mint to Wallet */}
           {/* ============================================================ */}
-          {isGameConfigured && isTokenConfigured && (
+          {isTokenConfigured && (
             <div className="bg-gradient-to-r from-neon-pink/20 to-neon-purple/20 border-2 border-neon-pink/50 rounded-xl p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -311,7 +327,7 @@ export function SettlementModal({
                         <CheckCircle className="w-3 h-3 text-neon-green" />
                       )}
                       <span className="text-white font-cyber text-xs">
-                        {isRewardConfirming ? 'Claiming...' : 'Tokens Claimed!'}
+                        {isRewardConfirming ? 'Minting tokens...' : 'Tokens Minted!'}
                       </span>
                     </div>
                     <a
@@ -336,7 +352,7 @@ export function SettlementModal({
                   {isRewardLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      {isRewardPending ? 'Confirm in Wallet...' : 'Claiming...'}
+                      {isRewardPending ? 'Confirm in MetaMask...' : 'Minting...'}
                     </>
                   ) : (
                     <>
@@ -347,9 +363,9 @@ export function SettlementModal({
                 </button>
               ) : (
                 <div className="text-center py-2">
-                  <p className="text-neon-green font-cyber text-sm">✅ {REWARD_AMOUNT_DISPLAY} YBT added to wallet!</p>
+                  <p className="text-neon-green font-cyber text-sm">✅ {REWARD_AMOUNT_DISPLAY} YBT minted to your wallet!</p>
                   <p className="text-gray-500 font-cyber text-xs mt-1">
-                    Token: {YBT_TOKEN_ADDRESS?.slice(0, 10)}...{YBT_TOKEN_ADDRESS?.slice(-6)}
+                    Import token: {YBT_TOKEN_ADDRESS?.slice(0, 10)}...{YBT_TOKEN_ADDRESS?.slice(-6)}
                   </p>
                 </div>
               )}
@@ -363,11 +379,11 @@ export function SettlementModal({
             </div>
           )}
 
-          {/* Demo Mode Notice - when contracts not configured */}
-          {(!isGameConfigured || !isTokenConfigured) && (
+          {/* Demo Mode Notice - when token not configured */}
+          {!isTokenConfigured && (
             <div className="bg-neon-yellow/10 border border-neon-yellow/30 rounded-xl p-3 mb-4">
               <p className="text-neon-yellow font-cyber text-xs text-center">
-                🎮 Demo Mode: Deploy contracts to enable token rewards
+                🎮 Demo Mode: Set YBT_TOKEN_ADDRESS in wagmi.js to enable rewards
               </p>
             </div>
           )}

@@ -47,7 +47,7 @@ export const GAME_CONTRACT_ADDRESS =
 
 //  REAL ERC-20 Reward Token (YBT)
 export const YBT_TOKEN_ADDRESS =
-  '0x7e1D129EB01ED6fBe07689849F80e887D1Fb3871';
+  '0x8bcf113a4A93291Ce6c336162DbA19b9F257CbBC';
 
 // Reward amount shown in UI
 export const REWARD_AMOUNT_DISPLAY = '10';
@@ -169,7 +169,7 @@ export const GAME_ABI = [
 ];
 
 // ============================================================
-// YIELDBALL TOKEN (YBT) ABI
+// YIELDBALL TOKEN (YBT) ABI - With Public Mint
 // ============================================================
 export const YBT_ABI = [
   {
@@ -194,6 +194,13 @@ export const YBT_ABI = [
     outputs: [{ name: '', type: 'uint8' }],
   },
   {
+    name: 'totalSupply',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
     name: 'balanceOf',
     type: 'function',
     stateMutability: 'view',
@@ -202,6 +209,17 @@ export const YBT_ABI = [
   },
   {
     name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  // PUBLIC MINT - For hackathon demo (calls token directly)
+  {
+    name: 'mint',
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
@@ -220,3 +238,7 @@ export const YBT_ABI = [
     ],
   },
 ];
+
+// Reward amount in wei (10 YBT with 18 decimals)
+export const REWARD_AMOUNT_WEI = '10000000000000000000'; // 10 * 10^18
+

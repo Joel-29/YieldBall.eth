@@ -4,166 +4,118 @@
 
 This is a **hackathon demo** setup for rewarding players with ERC-20 tokens when they win the YieldBall game.
 
-**Flow:** Win Game → Claim Reward → 10 YBT tokens sent to MetaMask
+**Flow:** Win Game → Click "Claim" → MetaMask Popup → 10 YBT minted to wallet
+
+---
+
+## 🚨 IMPORTANT: Why Reverts Were Happening
+
+The original setup had this issue:
+1. Frontend called `gameContract.rewardWinner(player)`
+2. Game contract called `token.mint(player, amount)`
+3. Token's `mint()` had `onlyGameOrOwner` modifier
+4. **BUT** the `GAME_CONTRACT_ADDRESS` was set to wrong contract!
+
+**Solution:** Use `YieldBallTokenPublic.sol` with **public mint** and call it directly from frontend.
 
 ---
 
 ## 📦 Contracts
 
-### 1. YieldBallToken (YBT)
-- **File:** `contracts/YieldBallToken.sol`
-- **Type:** Simple ERC-20 token
+### Option 1: YieldBallTokenPublic (RECOMMENDED for Demo)
+- **File:** `contracts/YieldBallTokenPublic.sol`
+- **Type:** ERC-20 with PUBLIC mint (anyone can mint)
 - **Name:** YieldBall Token
-- **Symbol:** YBT
+- **Symbol:** YBT  
 - **Decimals:** 18
-- **Initial Supply:** 1,000,000 YBT (minted to deployer)
+- **NO role checks** - perfect for hackathon demo
 
-### 2. YieldBallGame
-- **File:** `contracts/YieldBallGame.sol`
-- **Type:** Game reward contract
-- **Reward:** 10 YBT per win
-- **Function:** `rewardWinner(address player)` - mints tokens to winner
+### Option 2: Original YieldBallToken (Requires Game Contract)
+- **File:** `contracts/YieldBallToken.sol`
+- Requires proper game contract setup
+- More complex deployment
 
 ---
 
-## 🚀 Deployment Steps (Base Sepolia)
+## 🚀 Quick Deployment (5 minutes)
 
-### Prerequisites
-- MetaMask with Base Sepolia network
-- Some Base Sepolia ETH for gas (get from [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-goerli-faucet))
-- [Remix IDE](https://remix.ethereum.org) for deployment
-
-### Step 1: Deploy YieldBallToken
+### Step 1: Deploy YieldBallTokenPublic
 
 1. Open [Remix IDE](https://remix.ethereum.org)
-2. Create new file: `YieldBallToken.sol`
-3. Copy contents from `contracts/YieldBallToken.sol`
+2. Create new file: `YieldBallTokenPublic.sol`
+3. Copy contents from `contracts/YieldBallTokenPublic.sol`
 4. Compile with Solidity ^0.8.20
 5. Deploy:
    - Environment: "Injected Provider - MetaMask"
-   - Network: Base Sepolia (Chain ID: 84532)
+   - Network: **Base Sepolia** (Chain ID: 84532)
    - Click "Deploy"
-6. **Save the deployed contract address!** (e.g., `0xYBT_TOKEN_ADDRESS...`)
+6. **Copy the deployed contract address!**
 
-### Step 2: Deploy YieldBallGame
-
-1. Create new file in Remix: `YieldBallGame.sol`
-2. Copy contents from `contracts/YieldBallGame.sol`
-3. Compile with Solidity ^0.8.20
-4. Deploy with constructor argument:
-   - `_tokenAddress`: The YBT token address from Step 1
-5. **Save the deployed contract address!** (e.g., `0xGAME_ADDRESS...`)
-
-### Step 3: Link Token to Game
-
-1. In Remix, go to the deployed **YieldBallToken** contract
-2. Call `setGameContract` with the **YieldBallGame** address
-3. This allows the game contract to mint tokens
-
-### Step 4: Update Frontend Config
+### Step 2: Update Frontend Config
 
 Edit `src/config/wagmi.js`:
 
 ```javascript
-// Replace null with your deployed addresses:
-export const YBT_TOKEN_ADDRESS = '0xYOUR_TOKEN_ADDRESS_HERE';
-export const GAME_CONTRACT_ADDRESS = '0xYOUR_GAME_ADDRESS_HERE';
+export const YBT_TOKEN_ADDRESS = '0xYOUR_NEW_TOKEN_ADDRESS';
 ```
+
+### Step 3: Test It!
+
+```bash
+npm run dev
+```
+
+1. Connect MetaMask (Base Sepolia)
+2. Play the game
+3. Win → Click "Claim 10 YBT Tokens"
+4. MetaMask pops up → Confirm
+5. Tokens appear in wallet!
 
 ---
 
 ## 🦊 Adding YBT to MetaMask
 
-After deployment, players can add the token to MetaMask:
-
 1. Open MetaMask
 2. Click "Import tokens"
-3. Select "Custom token"
-4. Paste the **YBT Token Address** (from Step 1)
-5. Symbol: YBT, Decimals: 18 (should auto-fill)
-6. Click "Add Custom Token"
+3. Paste **YBT Token Address**
+4. Symbol: YBT, Decimals: 18 (auto-fills)
+5. Click "Add Custom Token"
 
 ---
 
-## 🎯 How It Works
+## 📋 Current Configuration
 
-### In the Game:
-1. Player plays YieldBall and the ball lands in a bucket
-2. Settlement modal shows with game results
-3. **"Claim 10 YBT Tokens"** button appears
-4. Player clicks → MetaMask popup → Confirm transaction
-5. 10 YBT tokens minted to player's wallet
-6. Visible in MetaMask under tokens
+| Setting | Value |
+|---------|-------|
+| Network | Base Sepolia (84532) |
+| Token Address | `0x7e1D129EB01ED6fBe07689849F80e887D1Fb3871` |
+| Reward Amount | 10 YBT per win |
+| Decimals | 18 |
 
-### On-Chain Flow:
+---
+
+## 🔧 How the Fix Works
+
+**Before (broken):**
 ```
-Player Wallet → calls Game.rewardWinner(player)
-                      ↓
-              Game Contract → calls Token.mint(player, 10e18)
-                                      ↓
-                              10 YBT minted to player
-                              Transfer event emitted
+Frontend → gameContract.rewardWinner() → token.mint() ❌ REVERTS
 ```
 
----
-
-## 🔧 Contract Functions
-
-### YieldBallToken
-| Function | Description |
-|----------|-------------|
-| `transfer(to, amount)` | Standard ERC-20 transfer |
-| `balanceOf(account)` | Get token balance |
-| `mint(to, amount)` | Mint tokens (owner or game only) |
-| `setGameContract(addr)` | Set authorized game contract |
-
-### YieldBallGame
-| Function | Description |
-|----------|-------------|
-| `rewardWinner(player)` | Mints 10 YBT to player |
-| `getPlayerStats(player)` | Returns (wins, totalRewards) |
-| `setTokenAddress(addr)` | Update token contract |
-
----
-
-## ⚠️ Important Notes
-
-1. **This is a DEMO** - Not production-ready!
-2. **Minting is permissioned** - Only owner or game contract can mint
-3. **Base Sepolia only** - Testnet tokens have no value
-4. **Gas costs** - Players pay gas to claim rewards
-
----
-
-## 🧪 Testing Locally
-
-```bash
-# Start the frontend
-cd yieldball
-npm install
-npm run dev
-
-# Play the game, win, click "Claim Tokens"
-# Check MetaMask for YBT balance
+**After (fixed):**
+```
+Frontend → token.mint(userAddress, 10e18) ✅ WORKS
 ```
 
----
-
-## 📋 Deployed Addresses (Fill after deployment)
-
-| Contract | Address |
-|----------|---------|
-| YieldBallToken (YBT) | `0x...` |
-| YieldBallGame | `0x...` |
+The frontend now calls the token's `mint()` function directly with:
+- `to`: Connected wallet address
+- `amount`: 10 * 10^18 (10 YBT with 18 decimals)
 
 ---
 
-## 🏆 Hackathon Demo Checklist
+## ⚠️ Security Note
 
-- [ ] Deploy YieldBallToken to Base Sepolia
-- [ ] Deploy YieldBallGame to Base Sepolia
-- [ ] Call setGameContract on Token
-- [ ] Update wagmi.js with addresses
-- [ ] Import YBT token in MetaMask
-- [ ] Play game → Win → Claim tokens
-- [ ] Show token balance in MetaMask
+**YieldBallTokenPublic** has a public `mint()` function - anyone can mint tokens.
+
+This is **INTENTIONAL** for the hackathon demo. 
+
+For production, use proper access control (OpenZeppelin AccessControl, onlyOwner, etc.).
