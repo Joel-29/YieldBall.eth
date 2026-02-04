@@ -13,14 +13,14 @@ import Matter from 'matter-js';
 const { Engine, Render, Runner, Bodies, Body, Composite, Events } = Matter;
 
 // Ball configurations based on ENS class
-// Physics tuned for FAST gameplay
+// Physics tuned for NATURAL Pachinko feel
 export const BALL_CONFIGS = {
   whale: {
     scale: 1.5,
     mass: 3,
-    restitution: 0.6,
-    friction: 0.001,
-    frictionAir: 0.001,
+    restitution: 0.5,     // Natural bounce, not too wild
+    friction: 0.01,
+    frictionAir: 0.01,    // Natural air resistance
     slop: 0.05,
     color: '#ffd700', // Gold
     label: '🐋 Whale',
@@ -29,9 +29,9 @@ export const BALL_CONFIGS = {
   degen: {
     scale: 0.7,
     mass: 1,
-    restitution: 0.8,
-    friction: 0.001,
-    frictionAir: 0.001,
+    restitution: 0.5,     // Natural bounce
+    friction: 0.01,
+    frictionAir: 0.01,    // Natural air resistance
     slop: 0.05,
     color: '#ff006e', // Neon Red
     label: '🔥 Degen',
@@ -40,9 +40,9 @@ export const BALL_CONFIGS = {
   default: {
     scale: 1.0,
     mass: 1,
-    restitution: 0.7,
-    friction: 0.001,
-    frictionAir: 0.001,
+    restitution: 0.5,     // Natural bounce
+    friction: 0.01,
+    frictionAir: 0.01,    // Natural air resistance
     slop: 0.05,
     color: '#c0c0c0', // Silver
     label: '⚡ Standard',
@@ -89,14 +89,14 @@ export class PachinkoEngine {
   }
 
   init() {
-    // 1. Create Engine with HIGH SPEED physics
+    // 1. Create Engine with NATURAL physics (standard Pachinko feel)
     this.engine = Engine.create({
       enableSleeping: false,
-      positionIterations: 10,
-      velocityIterations: 10,
+      positionIterations: 6,
+      velocityIterations: 4,
     });
-    this.engine.gravity.y = 1.5;
-    this.engine.gravity.scale = 0.002; // Stronger gravity pull
+    this.engine.gravity.y = 1;
+    this.engine.gravity.scale = 0.001; // Standard realistic gravity
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -197,7 +197,7 @@ export class PachinkoEngine {
 
         const peg = Bodies.circle(x, y, pegRadius, {
           isStatic: true,
-          restitution: 0.8,
+          restitution: 0.6,  // Satisfying clink without wild bounces
           friction: 0.01,
           label: `peg-${row}-${col}`,
           render: {
@@ -450,9 +450,9 @@ export class PachinkoEngine {
       label: 'ball',
       restitution: this.ballConfig.restitution,
       friction: this.ballConfig.friction,
-      frictionAir: 0.0008, // Very low air friction for fast movement
+      frictionAir: this.ballConfig.frictionAir, // Natural air resistance
       slop: this.ballConfig.slop,
-      density: 0.002 * this.ballConfig.mass, // Heavier ball
+      density: 0.001 * this.ballConfig.mass,
       render: {
         fillStyle: this.ballConfig.color,
         strokeStyle: '#fff',
@@ -463,8 +463,8 @@ export class PachinkoEngine {
 
     Composite.add(this.engine.world, this.ball);
     
-    // INSTANT DOWNWARD SHOT - gives the ball immediate velocity
-    Body.setVelocity(this.ball, { x: 0, y: 12 });
+    // Natural drop with tiny random nudge (slightly faster than pure gravity)
+    Body.setVelocity(this.ball, { x: (Math.random() - 0.5), y: 3 });
     
     this.isPlaying = true;
     this.pegHitCount = 0;

@@ -3,6 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchCh
 import { parseUnits, formatUnits } from 'viem';
 import { CheckCircle, Coins, TrendingUp, Zap, ArrowRight, Wallet, Loader2, ExternalLink, AlertCircle, Gift } from 'lucide-react';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './ui/ShinyText.jsx';
+import PixelSnow from './ui/PixelSnow.jsx';
 import { 
   VAULT_ADDRESS, 
   VAULT_ABI, 
@@ -174,9 +175,20 @@ export function SettlementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      {/* Transparent backdrop - Galaxy visible behind with heavy blur */}
+      {/* Transparent backdrop - Galaxy visible behind */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-xl"
+        className="absolute inset-0 bg-black/10 backdrop-blur-md"
+      />
+      
+      {/* Pixel Snow Effect - Celebratory falling particles */}
+      <PixelSnow 
+        color="#00f5ff"
+        flakeSize={2}
+        pixelSize={3}
+        speed={2}
+        density={100}
+        direction={180}
+        brightness={0.6}
       />
       
       {/* Modal with slide-up animation */}

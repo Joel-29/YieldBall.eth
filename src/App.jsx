@@ -42,9 +42,9 @@ function App() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Galaxy Background - Fixed, z-index 0, pointer-events none */}
-      <Galaxy starCount={500} rotationSpeed={0.00012} nebulaCount={4} />
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#020617]">
+      {/* Galaxy Background - Fixed at z-0, static calm speed, never reacts to game */}
+      <Galaxy speed={0.2} density={1.5} />
       
       {/* Main Content Container - z-index 10 */}
       <div className="relative z-10">

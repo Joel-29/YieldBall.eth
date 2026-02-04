@@ -51,16 +51,11 @@ export function PachinkoGame({
     };
   }, [isPlaying, ballConfig.yieldMultiplier]);
 
-  // Handle peg hit - add $0.005 and sign state update + WARP EFFECT
+  // Handle peg hit - add $0.005 and sign state update
   const handlePegHit = useCallback((hitCount, pegId) => {
     const yieldAmount = 0.005 * ballConfig.yieldMultiplier;
     setLiveYield(prev => prev + yieldAmount);
     setPegHits(hitCount);
-    
-    // Trigger Galaxy warp speed effect
-    if (typeof window.triggerGalaxyWarp === 'function') {
-      window.triggerGalaxyWarp();
-    }
     
     // Flash effect for yield counter
     setIsPegHitFlash(true);
@@ -141,7 +136,7 @@ export function PachinkoGame({
   }, [ensClass]);
 
   return (
-    <div className="relative z-10">
+    <div className="relative z-10 bg-transparent">
       {/* HUD - Top Bar with Glassmorphism */}
       <div className="absolute -top-16 left-0 right-0 flex justify-center z-20">
         <GlassmorphicCard 

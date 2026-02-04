@@ -185,34 +185,26 @@ class Nebula {
 }
 
 export function Galaxy({ 
-  starCount = 400,
-  rotationSpeed = 0.00015,
-  nebulaCount = 3,
+  speed = 0.2,
+  density = 1.0,
   className = '',
 }) {
+  // Convert speed prop to rotation: speed 0.2 = gentle cosmic drift
+  const rotationSpeed = speed * 0.0005;
+  const starCount = Math.floor(300 * density);
+  const nebulaCount = Math.floor(3 * density);
+  
   const canvasRef = useRef(null);
   const starsRef = useRef([]);
   const nebulaeRef = useRef([]);
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
-  const warpFactorRef = useRef(1);
-  const warpTargetRef = useRef(1);
+  // REMOVED: Warp effects - Galaxy stays calm always
+  // const warpFactorRef = useRef(1);
+  // const warpTargetRef = useRef(1);
 
-  // Warp speed trigger function (exposed via window for game to call)
-  const triggerWarp = useCallback(() => {
-    warpTargetRef.current = 5;
-    setTimeout(() => {
-      warpTargetRef.current = 1;
-    }, 200);
-  }, []);
-
-  // Expose warp trigger globally for the game to use
-  useEffect(() => {
-    window.triggerGalaxyWarp = triggerWarp;
-    return () => {
-      delete window.triggerGalaxyWarp;
-    };
-  }, [triggerWarp]);
+  // Galaxy is now a STATIC calm background
+  // No warp effects - stays consistent across entire app
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -240,13 +232,13 @@ export function Galaxy({
     resize();
     window.addEventListener('resize', resize);
 
-    // Animation loop
+    // Animation loop - calm, consistent cosmic background
     const animate = (timestamp) => {
       const deltaTime = timestamp - lastTimeRef.current;
       lastTimeRef.current = timestamp;
 
-      // Smooth warp factor transition
-      warpFactorRef.current += (warpTargetRef.current - warpFactorRef.current) * 0.1;
+      // Static warp factor of 1 (no speed changes)
+      const warpFactor = 1;
 
       // Clear with deep space gradient
       const gradient = ctx.createRadialGradient(
@@ -266,10 +258,10 @@ export function Galaxy({
         nebula.draw(ctx);
       });
 
-      // Update and draw stars
+      // Update and draw stars (warpFactor = 1 always)
       starsRef.current.forEach(star => {
-        star.update(deltaTime, rotationSpeed, warpFactorRef.current);
-        star.draw(ctx, warpFactorRef.current);
+        star.update(deltaTime, rotationSpeed, warpFactor);
+        star.draw(ctx, warpFactor);
       });
 
       animationRef.current = requestAnimationFrame(animate);
