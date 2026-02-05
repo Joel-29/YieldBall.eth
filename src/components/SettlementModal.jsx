@@ -197,90 +197,75 @@ export function SettlementModal({
           color="#7df9ff"
           speed={1}
           chaos={0.12}
-          borderRadius={24}
-          borderWidth={3}
+          borderRadius={16}
+          borderWidth={2}
         >
-          {/* Content Card - Glassmorphic/Transparent (z-index: 20) */}
+          {/* Content Card - Clean dark background like ReactBits Electric Card */}
           <div 
-            className="bg-black/40 backdrop-blur-xl border border-white/10 p-8 rounded-[24px]"
+            className="bg-[#0a0a0f] p-6 rounded-[16px]"
             style={{ zIndex: 20 }}
           >
             
-            {/* ========== HEADER - Shiny "Session Settled!" ========== */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-neon-green/20 border border-neon-green/40 rounded-full mb-4">
-                <CheckCircle className="w-5 h-5 text-neon-green" />
-                <span className="text-neon-green text-sm font-cyber">No-Loss Complete</span>
-              </div>
-              
-              <h1 className="font-arcade text-3xl mb-2">
-                <ShinyText variant="cyan" speed="fast" className="text-3xl">
-                  Session Settled!
-                </ShinyText>
-              </h1>
-              
-              <p className="text-gray-400 font-mono text-sm">
-                Landed in <span style={{ color: bucket.color }}>{bucket.label}</span> ({multiplier}x Multiplier)
-              </p>
+            {/* ========== BADGE - "SETTLED" pill like ReactBits "FEATURED" ========== */}
+            <div className="mb-6">
+              <span className="inline-block px-3 py-1.5 bg-white/10 border border-white/20 rounded-full text-white/80 text-xs font-medium tracking-wide">
+                SETTLED
+              </span>
             </div>
 
-            {/* ========== STATS GRID - Two Columns ========== */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {/* Principal Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Coins className="w-4 h-4 text-neon-purple" />
-                  <span className="text-gray-400 font-mono text-xs uppercase">Principal</span>
-                </div>
-                <p className="text-white font-arcade text-xl">${principal.toFixed(2)}</p>
-                <p className="text-neon-purple font-mono text-xs mt-1">🔒 Locked in Aave V3</p>
+            {/* ========== TITLE - Clean white text ========== */}
+            <h1 className="text-white text-3xl font-bold mb-3">
+              Session Complete
+            </h1>
+            
+            {/* ========== DESCRIPTION - Gray text ========== */}
+            <p className="text-gray-400 text-base mb-8">
+              You landed in <span className="text-white font-medium" style={{ color: bucket.color }}>{bucket.label}</span> with a {multiplier}x multiplier.
+            </p>
+
+            {/* ========== PAYOUT SECTION ========== */}
+            <div className="space-y-3 mb-8">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Principal</span>
+                <span className="text-white font-medium">${principal.toFixed(2)}</span>
               </div>
-              
-              {/* Yield Earned Card */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-neon-cyan" />
-                  <span className="text-gray-400 font-mono text-xs uppercase">Yield Earned</span>
-                </div>
-                <ShinyText variant="cyan" speed="fast" className="font-arcade text-xl">
-                  +${finalYield.toFixed(6)}
-                </ShinyText>
-                <p className="text-neon-cyan font-mono text-xs mt-1">⚡ {pegHits} bounces × {multiplier}x</p>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Yield Earned</span>
+                <span className="text-[#7df9ff] font-medium">+${finalYield.toFixed(6)}</span>
+              </div>
+              <div className="h-px bg-white/10 my-2" />
+              <div className="flex justify-between items-center">
+                <span className="text-white font-medium">Total Payout</span>
+                <span className="text-white text-xl font-bold">${totalPayout.toFixed(6)}</span>
               </div>
             </div>
 
-            {/* ========== TOTAL PAYOUT HIGHLIGHT ========== */}
-            <div className="relative mb-6">
-              {/* Glow behind */}
-              <div 
-                className="absolute inset-0 rounded-2xl blur-xl opacity-30"
-                style={{ background: `linear-gradient(135deg, #7df9ff, ${bucket.color})` }}
-              />
-              
-              <div className="relative bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <p className="text-center text-gray-400 font-mono text-sm mb-2">TOTAL PAYOUT</p>
-                <div className="text-center">
-                  <ShinyText variant="gold" speed="fast" className="font-arcade text-4xl">
-                    ${totalPayout.toFixed(6)}
-                  </ShinyText>
-                </div>
-                <p className="text-center text-gray-500 font-mono text-xs mt-2">
-                  Session: {Math.floor(sessionDuration)}s • Base Yield: ${baseYield.toFixed(4)}
-                </p>
-              </div>
+            {/* ========== META BADGES - Like "Live" and "v1.0" in ReactBits ========== */}
+            <div className="flex items-center gap-2 mb-8">
+              <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-gray-400 text-xs">
+                {pegHits} bounces
+              </span>
+              <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-gray-400 text-xs">
+                {Math.floor(sessionDuration)}s
+              </span>
+              {ybtBalance !== undefined && (
+                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-gray-400 text-xs">
+                  {parseFloat(formattedYbtBalance).toFixed(0)} YBT
+                </span>
+              )}
             </div>
 
             {/* ========== TRANSACTION STATUS ========== */}
             {txHash && (
-              <div className={`rounded-xl p-3 mb-4 ${isConfirmed ? 'bg-neon-green/20 border border-neon-green/50' : 'bg-neon-cyan/20 border border-neon-cyan/50'}`}>
+              <div className={`rounded-lg p-3 mb-4 ${isConfirmed ? 'bg-green-500/10 border border-green-500/30' : 'bg-[#7df9ff]/10 border border-[#7df9ff]/30'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {isConfirming ? (
-                      <Loader2 className="w-4 h-4 text-neon-cyan animate-spin" />
+                      <Loader2 className="w-4 h-4 text-[#7df9ff] animate-spin" />
                     ) : (
-                      <CheckCircle className="w-4 h-4 text-neon-green" />
+                      <CheckCircle className="w-4 h-4 text-green-400" />
                     )}
-                    <span className="text-white font-cyber text-sm">
+                    <span className="text-white text-sm">
                       {isConfirming ? 'Confirming on Base...' : 'Transaction Confirmed!'}
                     </span>
                   </div>
@@ -288,7 +273,7 @@ export function SettlementModal({
                     href={`https://sepolia.basescan.org/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-neon-cyan hover:underline text-xs font-cyber"
+                    className="flex items-center gap-1 text-[#7df9ff] hover:underline text-xs"
                   >
                     View <ExternalLink className="w-3 h-3" />
                   </a>
@@ -298,10 +283,10 @@ export function SettlementModal({
 
             {/* Error Display */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 mb-4">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-400 font-cyber text-sm">
+                  <span className="text-red-400 text-sm">
                     {error.shortMessage || error.message?.slice(0, 80) || 'Transaction failed'}
                   </span>
                 </div>
@@ -310,35 +295,33 @@ export function SettlementModal({
 
             {/* ========== YBT REWARD SECTION ========== */}
             {isTokenConfigured && !isConfirmed && (
-              <div className="bg-gradient-to-r from-neon-pink/20 to-neon-purple/20 border border-neon-pink/40 rounded-xl p-4 mb-4">
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Gift className="w-5 h-5 text-neon-pink" />
-                    <span className="font-arcade text-sm text-neon-pink">BONUS REWARD</span>
+                    <Gift className="w-4 h-4 text-[#7df9ff]" />
+                    <span className="text-white text-sm font-medium">Bonus Reward</span>
                   </div>
-                  <span className="text-neon-cyan font-arcade">+{REWARD_AMOUNT_DISPLAY} YBT</span>
+                  <span className="text-[#7df9ff] font-medium">+{REWARD_AMOUNT_DISPLAY} YBT</span>
                 </div>
                 
                 {rewardTxHash ? (
-                  <div className={`rounded-lg p-2 ${isRewardConfirmed ? 'bg-neon-green/20' : 'bg-neon-cyan/20'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {isRewardConfirming ? (
-                          <Loader2 className="w-3 h-3 text-neon-cyan animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-3 h-3 text-neon-green" />
-                        )}
-                        <span className="text-white font-cyber text-xs">
-                          {isRewardConfirming ? 'Minting...' : 'Tokens Minted!'}
-                        </span>
-                      </div>
+                  <div className={`rounded-lg p-2 ${isRewardConfirmed ? 'bg-green-500/10' : 'bg-[#7df9ff]/10'}`}>
+                    <div className="flex items-center gap-2">
+                      {isRewardConfirming ? (
+                        <Loader2 className="w-3 h-3 text-[#7df9ff] animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-3 h-3 text-green-400" />
+                      )}
+                      <span className="text-white text-xs">
+                        {isRewardConfirming ? 'Minting...' : 'Tokens Minted!'}
+                      </span>
                     </div>
                   </div>
                 ) : (
                   <button
                     onClick={handleClaimReward}
                     disabled={isRewardLoading}
-                    className="w-full py-2 bg-gradient-to-r from-neon-pink to-neon-purple rounded-lg font-cyber text-white text-sm hover:opacity-90 transition-all disabled:opacity-50"
+                    className="w-full py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-sm transition-all disabled:opacity-50"
                   >
                     {isRewardLoading ? 'Claiming...' : `Claim ${REWARD_AMOUNT_DISPLAY} YBT`}
                   </button>
@@ -346,20 +329,13 @@ export function SettlementModal({
               </div>
             )}
 
-            {/* ========== MAIN CTA - FINALIZE BUTTON with Neon Glow ========== */}
+            {/* ========== MAIN CTA - Clean white button like ReactBits "Get Started" ========== */}
             {!isConfirmed ? (
               <button
                 onClick={handleFinalizeOnChain}
                 disabled={isLoading}
-                className="w-full py-4 px-6 rounded-xl font-arcade text-white text-lg flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
-                style={{
-                  background: 'linear-gradient(135deg, #7df9ff 0%, #00d4ff 50%, #7df9ff 100%)',
-                  boxShadow: '0 0 30px rgba(125, 249, 255, 0.5), 0 0 60px rgba(125, 249, 255, 0.3)',
-                }}
+                className="w-full py-4 bg-white text-black font-semibold rounded-xl flex items-center justify-center gap-2 transition-all hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {/* Animated shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -367,16 +343,16 @@ export function SettlementModal({
                   </>
                 ) : (
                   <>
-                    <Wallet className="w-5 h-5" />
-                    <span className="text-cyber-darker">⚡ Finalize on Base ⚡</span>
+                    <span>Finalize on Base</span>
+                    <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             ) : (
               <div className="text-center py-4">
-                <CheckCircle className="w-12 h-12 text-neon-green mx-auto mb-3" />
-                <p className="font-arcade text-neon-green text-lg">WITHDRAWAL COMPLETE!</p>
-                <p className="text-gray-400 font-cyber text-sm mt-2">
+                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                <p className="text-green-400 text-lg font-semibold">Withdrawal Complete!</p>
+                <p className="text-gray-400 text-sm mt-2">
                   ${totalPayout.toFixed(6)} USDC sent to your wallet
                 </p>
               </div>
@@ -386,29 +362,16 @@ export function SettlementModal({
             <div className="flex gap-3 mt-4">
               <button
                 onClick={onPlayAgain}
-                className="flex-1 py-3 px-4 bg-white/10 border border-white/20 rounded-lg font-cyber text-white hover:bg-white/20 transition-all"
+                className="flex-1 py-3 px-4 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-all"
               >
                 Play Again
               </button>
               <button
                 onClick={onWithdraw}
-                className="flex-1 py-3 px-4 border border-gray-600 rounded-lg font-cyber text-gray-400 hover:text-white hover:border-gray-500 transition-all"
+                className="flex-1 py-3 px-4 border border-white/10 rounded-lg text-gray-400 text-sm hover:text-white hover:border-white/20 transition-all"
               >
                 Close
               </button>
-            </div>
-
-            {/* ========== FOOTER - Yellow Network Verification ========== */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-              <p className="text-center text-gray-500 font-mono text-xs">
-                ⚡ Verified by Yellow Network State Channels
-              </p>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <div className="w-2 h-2 rounded-full bg-neon-cyan animate-pulse" />
-                <p className="text-gray-600 font-mono text-xs">
-                  Base Sepolia • Aave V3 Vault
-                </p>
-              </div>
             </div>
 
           </div>
