@@ -52,8 +52,8 @@ function App() {
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center shadow-lg shadow-neon-purple/50 animate-pulse">
-              <span className="text-xl">🎰</span>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neon-pink to-neon-purple flex items-center justify-center shadow-lg shadow-neon-purple/50 overflow-hidden">
+              <img src="/pinball.png" alt="YieldBall" className="w-8 h-8 object-contain" />
             </div>
             <div>
               <h1 className="font-arcade text-lg">
@@ -134,6 +134,44 @@ function App() {
             {/* ENS Class Preview */}
             <GlassmorphicCard className="p-6 mb-8" glowColor="#8b5cf6">
               <h3 className="font-arcade text-sm text-gray-400 mb-4">YOUR BALL</h3>
+              
+              {/* Shiny Thunder Symbol in Circle */}
+              <div className="flex justify-center mb-6">
+                <div 
+                  className="w-24 h-24 rounded-full flex items-center justify-center relative"
+                  style={{
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)',
+                    boxShadow: '0 0 40px rgba(251, 191, 36, 0.4), 0 0 80px rgba(251, 191, 36, 0.2), inset 0 0 20px rgba(251, 191, 36, 0.1)',
+                    border: '2px solid rgba(251, 191, 36, 0.5)',
+                  }}
+                >
+                  {/* Outer glow ring */}
+                  <div className="absolute inset-0 rounded-full animate-pulse" style={{ boxShadow: '0 0 30px rgba(251, 191, 36, 0.6)' }} />
+                  {/* Thunder bolt - thick and shiny */}
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    className="w-14 h-14"
+                    style={{
+                      filter: 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #fbbf24)',
+                    }}
+                  >
+                    <path 
+                      d="M13 2L4 14h7l-2 8 11-12h-7l2-8z" 
+                      fill="url(#thunderGradient)"
+                      stroke="#fcd34d"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                    <defs>
+                      <linearGradient id="thunderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fef3c7" />
+                        <stop offset="50%" stopColor="#fbbf24" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+              </div>
               
               <div className="flex items-center gap-6">
                 {/* Ball Preview */}
