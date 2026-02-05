@@ -1,6 +1,6 @@
 # YieldBall Demo Token System
 
-## 🎮 Overview
+## Overview
 
 This is a **hackathon demo** setup for rewarding players with ERC-20 tokens when they win the YieldBall game.
 
@@ -8,7 +8,7 @@ This is a **hackathon demo** setup for rewarding players with ERC-20 tokens when
 
 ---
 
-## 🚨 IMPORTANT: Why Reverts Were Happening
+##  IMPORTANT: Why Reverts Were Happening
 
 The original setup had this issue:
 1. Frontend called `gameContract.rewardWinner(player)`
@@ -20,7 +20,7 @@ The original setup had this issue:
 
 ---
 
-## 📦 Contracts
+##  Contracts
 
 ### Option 1: YieldBallTokenPublic (RECOMMENDED for Demo)
 - **File:** `contracts/YieldBallTokenPublic.sol`
@@ -37,7 +37,7 @@ The original setup had this issue:
 
 ---
 
-## 🚀 Quick Deployment (5 minutes)
+##  Quick Deployment (5 minutes)
 
 ### Step 1: Deploy YieldBallTokenPublic
 
@@ -73,7 +73,7 @@ npm run dev
 
 ---
 
-## 🦊 Adding YBT to MetaMask
+##  Adding YBT to MetaMask
 
 1. Open MetaMask
 2. Click "Import tokens"
@@ -83,7 +83,7 @@ npm run dev
 
 ---
 
-## 📋 Current Configuration
+##  Current Configuration
 
 | Setting | Value |
 |---------|-------|
@@ -94,16 +94,16 @@ npm run dev
 
 ---
 
-## 🔧 How the Fix Works
+##  How the Fix Works
 
 **Before (broken):**
 ```
-Frontend → gameContract.rewardWinner() → token.mint() ❌ REVERTS
+Frontend → gameContract.rewardWinner() → token.mint()  REVERTS
 ```
 
 **After (fixed):**
 ```
-Frontend → token.mint(userAddress, 10e18) ✅ WORKS
+Frontend → token.mint(userAddress, 10e18)  WORKS
 ```
 
 The frontend now calls the token's `mint()` function directly with:
@@ -112,7 +112,7 @@ The frontend now calls the token's `mint()` function directly with:
 
 ---
 
-## ⚠️ Security Note
+##  Security Note
 
 **YieldBallTokenPublic** has a public `mint()` function - anyone can mint tokens.
 

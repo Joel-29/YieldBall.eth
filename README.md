@@ -1,21 +1,31 @@
-# YieldBall.eth 
+YieldBall.eth
 
-A Web3 Pinball game where you earn real yield while you play!
+A Web3 Pachinko Arcade where you earn real yield while you play
 
-![YieldBall Banner](https://via.placeholder.com/800x400/0f172a/ff006e?text=YieldBall.eth)
+YieldBall.eth is an identity-driven, no-loss DeFi Pachinko game that turns passive yield farming into an interactive arcade experience. Your capital becomes the ball, your ENS identity shapes the physics, and your rewards are verified on-chain.
 
-##  Features
+Features:
 
-- **Web3 Integration**: Connect your wallet using RainbowKit/Wagmi
-- **Real-time Yield**: Earn $0.0001/sec while playing, plus bonus yield on bumper hits
-- **Matter.js Physics**: Realistic pinball physics with flippers, bumpers, and ball trails
-- **ENS Classes**: Set `yieldball.class` in your ENS for special game modes
-- **State Channels**: Simulated Yellow Network integration for gas-free gameplay
-- **80s Neon Aesthetic**: Cyberpunk-inspired visuals with glowing effects
+1.No-Loss DeFi Gameplay
+Deposit USDC into an Aave V3 vault
+Your principal is never at risk
+Earn real yield while playing Pachinko-style games
+2.ENS Identity-Based Mechanics
+Game physics and multipliers adapt based on your ENS text record yieldball.class
+Different ENS classes unlock unique play styles
 
-##  Quick Start
+2.Gas-Free Real-Time Gameplay:
 
-```bash
+Peg hits are signed off-chain using Yellow Network state channels
+Sub-millisecond feedback with final on-chain settlement
+No gas fees during active gameplay
+
+3.On-Chain Rewards:
+
+Bonus YieldBall Tokens (YBT) are minted on wins
+Transparent ERC-20 minting visible on Base Sepolia
+
+Quick Start
 # Install dependencies
 npm install
 
@@ -24,88 +34,120 @@ npm run dev
 
 # Build for production
 npm run build
-```
 
-##  How to Play
+How to Play
 
-1. **Connect Wallet**: Click "Connect Wallet" to link your Ethereum wallet
-2. **Deposit**: Click "Deposit 100 USDC" to enter the game
-3. **Launch**: Press `SPACE` to launch the ball
-4. **Flip**: Use `A`/`←` for left flipper, `D`/`→` for right flipper
-5. **Score**: Hit bumpers to earn points and bonus yield
-6. **Withdraw**: When the ball drains, withdraw your principal + earned yield
+Connect Wallet
+Connect using RainbowKit. Your ENS name (if any) is resolved automatically.
 
-##  ENS Player Classes
+Deposit
+Deposit 100 USDC to enter the Pachinko arcade. Funds are routed to an Aave V3 vault.
 
-Set the `yieldball.class` text record in your ENS name to unlock special modes:
+Drop the Ball
+Choose your drop position and release the Yield Ball into the board.
 
-| Class | Flipper Size | Ball Speed | Multiplier |
-|-------|-------------|------------|------------|
-| Default | 100px | Normal | 1x |
-| `whale` | 150px | Slow | 1x |
-| `degen` | 40px | Fast | 2x |
+Bounce & Multiply
+Each peg hit is signed via Yellow Network state channels.
+Land in multiplier zones like Aave, GHO, Uniswap, or Degen.
 
-##  Tech Stack
+Claim Rewards
+Withdraw your original deposit plus earned yield.
+Bonus YBT tokens are minted directly to your wallet.
 
-- **React 18** - UI Framework
-- **Vite** - Build Tool
-- **Tailwind CSS** - Styling
-- **Matter.js** - Physics Engine
-- **Wagmi v2** - Ethereum Hooks
-- **RainbowKit** - Wallet Connection
-- **Viem** - Ethereum Library
+ENS Player Classes
 
-##  State Channel Simulation
+Set the yieldball.class text record in your ENS name to unlock special modes:
 
-Every bumper hit triggers a console log simulating Yellow Network state channel updates:
+Class	Physics Style	Yield Multiplier
+default	Balanced physics	1×
+whale	High mass, stable bounces	1×
+degen	Fast, high restitution	2×
 
-```
- Signing State Update... Bumper 1 hit! +100 points
- Yellow Network: State channel update pending...
-```
+Physics variables (mass, restitution, speed) are recalibrated dynamically at runtime.
 
-##  Customization
+Tech Stack
+Frontend
 
-### Colors
+React 18
 
-The neon color palette is defined in `tailwind.config.js`:
+Vite
 
-- `neon-pink`: #ff006e
-- `neon-cyan`: #00f5ff
-- `neon-purple`: #8b5cf6
-- `neon-yellow`: #fbbf24
-- `neon-green`: #22c55e
-- `cyber-dark`: #0f172a
+Tailwind CSS
 
-### Physics
+ReactBits Animations
 
-Adjust game physics in `src/engine/PinballEngine.js`:
+Electric Border (Claim Page)
 
-- Gravity
-- Ball restitution and friction
-- Bumper bounce force
-- Flipper angular velocity
+Galaxy Background
 
-##  Environment Variables
+Shiny Text effects
 
-For production, replace the WalletConnect project ID in `src/config/wagmi.js`:
+Web3
 
-```javascript
-projectId: 'your-walletconnect-project-id'
-```
+Wagmi v2
 
-##  Contributing
+RainbowKit
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Viem
 
-##  License
+ENS Resolution (useEnsText, useEnsAvatar)
 
-MIT License - feel free to use this project however you'd like!
+Game Engine
 
----
+Matter.js for Pachinko physics
+
+Custom anti-stuck and bounce correction logic
+
+DeFi & Scaling
+
+Aave V3 (Base Sepolia) – No-loss liquidity vault
+
+Yellow Network – Off-chain state channel simulation
+
+Optional GHO payout via Uniswap hooks (future-ready)
+
+State Channel Simulation
+
+Each peg hit triggers an off-chain signed update:
+
+Signing State Update... Peg hit! +Yield
+Yellow Network: State channel update pending...
 
 
+The final game outcome is settled on-chain only when the session ends.
+
+Project Structure
+├── contracts/          # Vault & reward contracts (Base Sepolia)
+├── src/
+│   ├── components/    # ElectricBorder, GalaxyBackground, ShinyText
+│   ├── engine/        # Pachinko physics & state channels
+│   ├── hooks/         # ENS + Wagmi integrations
+│   └── App.jsx        # Global state & layout
+
+Environment Variables
+
+Create a .env file:
+
+VITE_WALLETCONNECT_PROJECT_ID=your_project_id
+VITE_BASE_RPC_URL=your_base_sepolia_rpc
+
+Contributing
+
+Fork the repository
+
+Create your branch
+
+git checkout -b feature/amazing-feature
+
+
+Commit changes
+
+git commit -m "Add amazing feature"
+
+
+Push and open a Pull Request
+
+License
+
+MIT License
+Feel free to fork, build, and remix YieldBall.eth
