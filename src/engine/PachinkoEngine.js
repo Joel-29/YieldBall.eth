@@ -10,41 +10,74 @@
 
 import Matter from 'matter-js';
 
-const { Engine, Render, Runner, Bodies, Body, Composite, Events } = Matter;
+const { Engine, Render, Runner, Bodies, Body, Composite, Events, Vector } = Matter;
+
+// =============================================================================
+// PHYSICS CONFIGURATION - Tuned for smooth, natural Pachinko gameplay
+// =============================================================================
+export const PHYSICS_CONFIG = {
+  // Anti-stuck detection thresholds
+  STUCK_VELOCITY_THRESHOLD: 0.4,      // Speed below which ball might be stuck
+  STUCK_FRAMES_THRESHOLD: 40,          // Frames before applying nudge (~0.67s at 60fps)
+  STUCK_CORNER_THRESHOLD: 60,          // Longer threshold for corner detection
+  
+  // Anti-stuck nudge forces (small, natural-feeling)
+  NUDGE_FORCE_MIN: 0.8,
+  NUDGE_FORCE_MAX: 1.5,
+  NUDGE_DOWNWARD_BIAS: 0.6,            // Slight downward preference
+  
+  // Collision position correction
+  COLLISION_OFFSET: 0.5,               // Pixels to offset after collision
+  OVERLAP_CORRECTION: 1.2,             // Multiplier for overlap resolution
+  
+  // Jitter prevention
+  JITTER_VELOCITY_THRESHOLD: 0.2,      // Very low velocity = jittering
+  JITTER_DAMPING: 0.85,                // Damping to apply when jittering
+  
+  // Boundary margins
+  WALL_MARGIN: 15,                     // Min distance from walls
+  PEG_ESCAPE_VELOCITY: 2.0,            // Min velocity to escape peg traps
+  
+  // Deterministic randomness seed (changes per drop)
+  RANDOM_SEED_MULTIPLIER: 1337,
+};
 
 // Ball configurations based on ENS class
-// Physics tuned for NATURAL Pachinko feel
+// Physics tuned for NATURAL Pachinko feel with anti-stuck properties
 export const BALL_CONFIGS = {
   whale: {
     scale: 1.5,
     mass: 3,
-    restitution: 0.5,     // Natural bounce, not too wild
-    friction: 0.01,
-    frictionAir: 0.01,    // Natural air resistance
-    slop: 0.05,
-    color: '#ffd700', // Gold
+    restitution: 0.55,    // Slightly higher for heavier ball
+    friction: 0.008,      // Lower friction reduces sticking
+    frictionAir: 0.012,   // Natural air resistance
+    frictionStatic: 0.02, // Low static friction prevents sticking
+    slop: 0.02,           // Tighter collision tolerance
+    color: '#ffd700',
     label: '🐋 Whale',
     yieldMultiplier: 1.0,
   },
   degen: {
     scale: 0.7,
     mass: 1,
-    restitution: 0.5,     // Natural bounce
-    friction: 0.01,
-    frictionAir: 0.01,    // Natural air resistance
-    slop: 0.05,
-    color: '#ff006e', // Neon Red
+    restitution: 0.52,    // Slightly variable restitution
+    friction: 0.006,
+    frictionAir: 0.008,
+    frictionStatic: 0.015,
+    slop: 0.02,
+    color: '#ff006e',
     label: '🔥 Degen',
     yieldMultiplier: 2.0,
   },
   default: {
     scale: 1.0,
     mass: 1,
-    restitution: 0.5,     // Natural bounce
-    friction: 0.01,
-    frictionAir: 0.01,    // Natural air resistance
-    slop: 0.05,
-    color: '#c0c0c0', // Silver
+    restitution: 0.53,    // Asymmetric value prevents perfect bounces
+    friction: 0.007,
+    frictionAir: 0.01,
+    frictionStatic: 0.018,
+    slop: 0.02,
+    color: '#c0c0c0',
     label: '⚡ Standard',
     yieldMultiplier: 1.0,
   },
@@ -78,7 +111,17 @@ export class PachinkoEngine {
     this.buckets = [];
     this.isPlaying = false;
     this.pegHitCount = 0;
-    this.stallFrames = 0; // Anti-stall tracking
+    
+    // Anti-stuck tracking system
+    this.stuckDetection = {
+      stallFrames: 0,           // Frames with low velocity
+      cornerFrames: 0,          // Frames stuck near corners
+      lastPosition: { x: 0, y: 0 },
+      lastVelocity: { x: 0, y: 0 },
+      recentCollisions: [],     // Track recent collision points
+      jitterCount: 0,           // Consecutive jitter detections
+      dropSeed: 0,              // Deterministic randomness seed
+    };
     
     // Physics refs
     this.engine = null;
@@ -195,10 +238,17 @@ export class PachinkoEngine {
         const colorIndex = (row + col) % 3;
         const colors = ['#ff006e', '#00f5ff', '#8b5cf6'];
 
+        // Slightly vary restitution per peg to prevent perfectly symmetric bounces
+        // This creates natural-feeling randomness without being obvious
+        const pegVariation = ((row * 7 + col * 13) % 100) / 1000; // 0 to 0.099
+        const pegRestitution = 0.55 + pegVariation; // 0.55 to 0.649
+
         const peg = Bodies.circle(x, y, pegRadius, {
           isStatic: true,
-          restitution: 0.6,  // Satisfying clink without wild bounces
-          friction: 0.01,
+          restitution: pegRestitution,
+          friction: 0.005 + (pegVariation / 2), // Slight friction variation
+          frictionStatic: 0.01,
+          slop: 0.01,
           label: `peg-${row}-${col}`,
           render: {
             fillStyle: colors[colorIndex],
@@ -207,6 +257,8 @@ export class PachinkoEngine {
           },
         });
         peg.pegColor = colors[colorIndex];
+        peg.pegRow = row;
+        peg.pegCol = col;
         this.pegs.push(peg);
       }
     }
@@ -387,37 +439,255 @@ export class PachinkoEngine {
   }
 
   setupAntiStall() {
-    // Anti-stall logic: if ball velocity is too low for too long, give it a nudge
+    // Comprehensive anti-stuck system with multiple detection strategies
     Events.on(this.engine, 'beforeUpdate', () => {
       if (!this.ball || !this.isPlaying) {
-        this.stallFrames = 0;
+        this.resetStuckDetection();
         return;
       }
 
-      const velocity = this.ball.velocity;
-      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+      const pos = this.ball.position;
+      const vel = this.ball.velocity;
+      const speed = Vector.magnitude(vel);
+      const sd = this.stuckDetection;
 
-      // Check if ball is nearly stationary (speed < 0.3) and not at the bottom
-      if (speed < 0.3 && this.ball.position.y < this.height - 100) {
-        this.stallFrames++;
+      // Skip if ball is near the bottom (about to land)
+      if (pos.y > this.height - 100) {
+        this.resetStuckDetection();
+        return;
+      }
 
-        // After 45 frames (~0.75 sec) of stalling, apply a random nudge
-        if (this.stallFrames > 45) {
-          const nudgeX = (Math.random() - 0.5) * 4; // Random horizontal force
-          const nudgeY = Math.random() * 2 + 1; // Downward bias
-          
-          Body.setVelocity(this.ball, {
-            x: velocity.x + nudgeX,
-            y: velocity.y + nudgeY,
-          });
-
-          console.log('%c⚡ Anti-stall nudge applied!', 'color: #ffd700;');
-          this.stallFrames = 0;
+      // 1. JITTER DETECTION - Very low velocity oscillation
+      if (speed < PHYSICS_CONFIG.JITTER_VELOCITY_THRESHOLD && speed > 0.01) {
+        // Check if velocity is oscillating (sign changes)
+        const velChanged = (vel.x * sd.lastVelocity.x < 0) || (vel.y * sd.lastVelocity.y < 0);
+        if (velChanged) {
+          sd.jitterCount++;
+          if (sd.jitterCount > 8) {
+            this.applyJitterCorrection();
+            sd.jitterCount = 0;
+          }
         }
       } else {
-        this.stallFrames = 0;
+        sd.jitterCount = Math.max(0, sd.jitterCount - 1);
+      }
+
+      // 2. GENERAL STUCK DETECTION - Low velocity for extended period
+      if (speed < PHYSICS_CONFIG.STUCK_VELOCITY_THRESHOLD) {
+        sd.stallFrames++;
+        
+        if (sd.stallFrames > PHYSICS_CONFIG.STUCK_FRAMES_THRESHOLD) {
+          this.applyAntiStuckNudge('general');
+          sd.stallFrames = 0;
+        }
+      } else {
+        sd.stallFrames = Math.max(0, sd.stallFrames - 2); // Gradual recovery
+      }
+
+      // 3. CORNER STUCK DETECTION - Ball near walls with low velocity
+      const nearLeftWall = pos.x < PHYSICS_CONFIG.WALL_MARGIN;
+      const nearRightWall = pos.x > this.width - PHYSICS_CONFIG.WALL_MARGIN;
+      const nearCorner = (nearLeftWall || nearRightWall) && speed < PHYSICS_CONFIG.STUCK_VELOCITY_THRESHOLD * 1.5;
+      
+      if (nearCorner) {
+        sd.cornerFrames++;
+        if (sd.cornerFrames > PHYSICS_CONFIG.STUCK_CORNER_THRESHOLD) {
+          this.applyCornerEscape(nearLeftWall);
+          sd.cornerFrames = 0;
+        }
+      } else {
+        sd.cornerFrames = Math.max(0, sd.cornerFrames - 1);
+      }
+
+      // 4. PEG TRAP DETECTION - Ball stuck between pegs (position barely changing)
+      const posDelta = Vector.magnitude(Vector.sub(pos, sd.lastPosition));
+      if (posDelta < 0.5 && speed < PHYSICS_CONFIG.STUCK_VELOCITY_THRESHOLD) {
+        sd.stallFrames += 2; // Accelerate stuck detection when truly immobile
+      }
+
+      // 5. BOUNDARY CORRECTION - Keep ball in valid play area
+      this.applyBoundaryCorrection();
+
+      // Update tracking
+      sd.lastPosition = { x: pos.x, y: pos.y };
+      sd.lastVelocity = { x: vel.x, y: vel.y };
+    });
+
+    // Collision-based position correction
+    Events.on(this.engine, 'collisionActive', (event) => {
+      if (!this.ball || !this.isPlaying) return;
+      this.handleActiveCollisions(event);
+    });
+  }
+
+  /**
+   * Generate deterministic but varied random value based on drop seed
+   */
+  seededRandom(offset = 0) {
+    const seed = this.stuckDetection.dropSeed + offset;
+    const x = Math.sin(seed * PHYSICS_CONFIG.RANDOM_SEED_MULTIPLIER) * 10000;
+    return x - Math.floor(x);
+  }
+
+  /**
+   * Apply gentle nudge to free stuck ball
+   */
+  applyAntiStuckNudge(reason) {
+    if (!this.ball) return;
+    
+    const vel = this.ball.velocity;
+    const nudgeStrength = PHYSICS_CONFIG.NUDGE_FORCE_MIN + 
+      this.seededRandom(this.stuckDetection.stallFrames) * 
+      (PHYSICS_CONFIG.NUDGE_FORCE_MAX - PHYSICS_CONFIG.NUDGE_FORCE_MIN);
+    
+    // Deterministic but varied direction
+    const angle = (this.seededRandom(Date.now() % 1000) - 0.5) * Math.PI * 0.6; // -54° to +54°
+    const nudgeX = Math.sin(angle) * nudgeStrength;
+    const nudgeY = Math.cos(angle) * nudgeStrength * PHYSICS_CONFIG.NUDGE_DOWNWARD_BIAS + 
+                   PHYSICS_CONFIG.NUDGE_DOWNWARD_BIAS;
+    
+    Body.setVelocity(this.ball, {
+      x: vel.x + nudgeX,
+      y: vel.y + nudgeY,
+    });
+
+    console.log(`%c⚡ Anti-stuck nudge (${reason}): dx=${nudgeX.toFixed(2)}, dy=${nudgeY.toFixed(2)}`, 'color: #ffd700;');
+  }
+
+  /**
+   * Apply correction for jittering ball (rapid oscillation)
+   */
+  applyJitterCorrection() {
+    if (!this.ball) return;
+    
+    const vel = this.ball.velocity;
+    
+    // Dampen current velocity and add small downward push
+    Body.setVelocity(this.ball, {
+      x: vel.x * PHYSICS_CONFIG.JITTER_DAMPING,
+      y: Math.max(vel.y * PHYSICS_CONFIG.JITTER_DAMPING, 0.8), // Ensure downward motion
+    });
+
+    console.log('%c🔧 Jitter correction applied', 'color: #00f5ff;');
+  }
+
+  /**
+   * Escape from wall corners with directed force
+   */
+  applyCornerEscape(isLeftWall) {
+    if (!this.ball) return;
+    
+    const escapeX = isLeftWall ? PHYSICS_CONFIG.PEG_ESCAPE_VELOCITY : -PHYSICS_CONFIG.PEG_ESCAPE_VELOCITY;
+    const escapeY = PHYSICS_CONFIG.PEG_ESCAPE_VELOCITY * 0.5;
+    
+    Body.setVelocity(this.ball, {
+      x: escapeX,
+      y: escapeY,
+    });
+    
+    // Also nudge position slightly away from wall
+    const offsetX = isLeftWall ? PHYSICS_CONFIG.COLLISION_OFFSET * 2 : -PHYSICS_CONFIG.COLLISION_OFFSET * 2;
+    Body.setPosition(this.ball, {
+      x: this.ball.position.x + offsetX,
+      y: this.ball.position.y,
+    });
+
+    console.log(`%c🚀 Corner escape (${isLeftWall ? 'left' : 'right'} wall)`, 'color: #ff006e;');
+  }
+
+  /**
+   * Keep ball within valid boundaries
+   */
+  applyBoundaryCorrection() {
+    if (!this.ball) return;
+    
+    const pos = this.ball.position;
+    const radius = this.ball.circleRadius || 12;
+    const margin = radius + 2;
+    let corrected = false;
+    let newX = pos.x;
+    let newY = pos.y;
+    
+    // Left boundary
+    if (pos.x < margin) {
+      newX = margin + PHYSICS_CONFIG.COLLISION_OFFSET;
+      corrected = true;
+    }
+    // Right boundary
+    if (pos.x > this.width - margin) {
+      newX = this.width - margin - PHYSICS_CONFIG.COLLISION_OFFSET;
+      corrected = true;
+    }
+    // Top boundary (shouldn't go above drop zone)
+    if (pos.y < margin) {
+      newY = margin + PHYSICS_CONFIG.COLLISION_OFFSET;
+      corrected = true;
+    }
+    
+    if (corrected) {
+      Body.setPosition(this.ball, { x: newX, y: newY });
+    }
+  }
+
+  /**
+   * Handle active (ongoing) collisions to prevent penetration
+   */
+  handleActiveCollisions(event) {
+    event.pairs.forEach((pair) => {
+      if (pair.bodyA.label !== 'ball' && pair.bodyB.label !== 'ball') return;
+      
+      const ball = pair.bodyA.label === 'ball' ? pair.bodyA : pair.bodyB;
+      const other = pair.bodyA.label === 'ball' ? pair.bodyB : pair.bodyA;
+      
+      // Skip bucket sensors
+      if (other.isSensor) return;
+      
+      // Calculate separation vector
+      const dx = ball.position.x - other.position.x;
+      const dy = ball.position.y - other.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < 0.01) return; // Avoid division by zero
+      
+      // If objects are overlapping, push ball out
+      const ballRadius = ball.circleRadius || 12;
+      const otherRadius = other.circleRadius || 8;
+      const minDist = ballRadius + otherRadius;
+      
+      if (dist < minDist) {
+        const overlap = minDist - dist;
+        const correction = overlap * PHYSICS_CONFIG.OVERLAP_CORRECTION;
+        
+        // Normalize and apply correction
+        const nx = dx / dist;
+        const ny = dy / dist;
+        
+        Body.setPosition(ball, {
+          x: ball.position.x + nx * correction,
+          y: ball.position.y + ny * correction,
+        });
+        
+        // Add tiny velocity boost in separation direction to prevent re-collision
+        const vel = ball.velocity;
+        const speed = Vector.magnitude(vel);
+        if (speed < PHYSICS_CONFIG.PEG_ESCAPE_VELOCITY) {
+          Body.setVelocity(ball, {
+            x: vel.x + nx * 0.3,
+            y: vel.y + ny * 0.3 + 0.2, // Slight downward bias
+          });
+        }
       }
     });
+  }
+
+  /**
+   * Reset stuck detection state
+   */
+  resetStuckDetection() {
+    this.stuckDetection.stallFrames = 0;
+    this.stuckDetection.cornerFrames = 0;
+    this.stuckDetection.jitterCount = 0;
+    this.stuckDetection.recentCollisions = [];
   }
 
   setupClickHandler() {
@@ -446,32 +716,38 @@ export class PachinkoEngine {
     const baseRadius = 12;
     const radius = baseRadius * this.ballConfig.scale;
 
+    // Generate deterministic seed for this drop (based on position and time)
+    this.stuckDetection.dropSeed = (clampedX * 1000 + Date.now()) % 100000;
+
     this.ball = Bodies.circle(clampedX, 20, radius, {
       label: 'ball',
       restitution: this.ballConfig.restitution,
       friction: this.ballConfig.friction,
-      frictionAir: this.ballConfig.frictionAir, // Natural air resistance
+      frictionStatic: this.ballConfig.frictionStatic,
+      frictionAir: this.ballConfig.frictionAir,
       slop: this.ballConfig.slop,
       density: 0.001 * this.ballConfig.mass,
+      // Prevent tunneling through pegs
+      isSleeping: false,
       render: {
         fillStyle: this.ballConfig.color,
         strokeStyle: '#fff',
         lineWidth: 2,
-        // Neon glow effect handled in custom render
       },
     });
 
     Composite.add(this.engine.world, this.ball);
     
-    // Natural drop with tiny random nudge (slightly faster than pure gravity)
-    Body.setVelocity(this.ball, { x: (Math.random() - 0.5), y: 3 });
+    // Deterministic initial nudge based on drop position (prevents symmetric paths)
+    const initialNudgeX = (this.seededRandom(0) - 0.5) * 0.8;
+    Body.setVelocity(this.ball, { x: initialNudgeX, y: 3 });
     
     this.isPlaying = true;
     this.pegHitCount = 0;
-    this.stallFrames = 0; // Reset stall counter
+    this.resetStuckDetection();
     
     this.onBallDrop();
-    console.log(`%c🎱 Ball dropped with velocity! (${this.ballConfig.label})`, 'color: #00f5ff;');
+    console.log(`%c🎱 Ball dropped! Seed: ${this.stuckDetection.dropSeed} (${this.ballConfig.label})`, 'color: #00f5ff;');
   }
 
   // Update ENS class and reconfigure ball
@@ -489,6 +765,7 @@ export class PachinkoEngine {
     }
     this.isPlaying = false;
     this.pegHitCount = 0;
+    this.resetStuckDetection();
   }
 
   // Cleanup (THE CLEANUP - Stops the bugs!)

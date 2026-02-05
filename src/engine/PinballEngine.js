@@ -11,7 +11,29 @@
 
 import Matter from 'matter-js';
 
-const { Engine, Render, Runner, Bodies, Body, Composite, Constraint, Events } = Matter;
+const { Engine, Render, Runner, Bodies, Body, Composite, Constraint, Events, Vector } = Matter;
+
+// =============================================================================
+// PHYSICS CONFIGURATION - Tuned for responsive pinball gameplay
+// =============================================================================
+const PINBALL_PHYSICS = {
+  // Anti-stuck thresholds (shorter for pinball - faster gameplay)
+  STUCK_VELOCITY_THRESHOLD: 0.5,
+  STUCK_FRAMES_THRESHOLD: 50,
+  CORNER_FRAMES_THRESHOLD: 40,
+  
+  // Nudge forces
+  NUDGE_FORCE_MIN: 1.0,
+  NUDGE_FORCE_MAX: 2.0,
+  
+  // Jitter prevention
+  JITTER_THRESHOLD: 0.25,
+  JITTER_DAMPING: 0.8,
+  
+  // Boundary correction
+  WALL_MARGIN: 20,
+  COLLISION_OFFSET: 1.0,
+};
 
 // Player class settings for ENS integration
 export const PLAYER_CLASSES = {
@@ -64,6 +86,15 @@ export class PinballEngine {
     this.isGameOver = false;
     this.ballLaunched = false;
     this.gameActive = false;
+    
+    // Anti-stuck tracking
+    this.stuckDetection = {
+      stallFrames: 0,
+      cornerFrames: 0,
+      lastPosition: { x: 0, y: 0 },
+      lastVelocity: { x: 0, y: 0 },
+      jitterCount: 0,
+    };
     
     // Physics references
     this.engine = null;
@@ -362,9 +393,15 @@ export class PinballEngine {
     ];
 
     this.bumpers = bumperData.map((b, i) => {
+      // Slightly vary restitution per bumper to prevent symmetric bounces
+      const restitutionVariation = 1.4 + (i * 0.03); // 1.4 to 1.55
+      
       const bumper = Bodies.circle(b.x, b.y, b.radius, {
         isStatic: true,
-        restitution: 1.5,
+        restitution: restitutionVariation,
+        friction: 0.01,
+        frictionStatic: 0.005,
+        slop: 0.01,
         label: i === 5 ? 'flashLoanRamp' : `bumper-${i}`,
         render: { fillStyle: b.color, strokeStyle: '#fff', lineWidth: 3 },
       });
@@ -405,13 +442,13 @@ export class PinballEngine {
 
     this.ball = Bodies.circle(ballX, ballY, 12, {
       label: 'ball',
-      restitution: 0.6,
-      friction: 0.001,
-      frictionAir: 0.01,
+      restitution: 0.58,       // Slightly asymmetric to prevent perfect bounces
+      friction: 0.002,         // Low friction for smooth rolling
+      frictionStatic: 0.005,   // Very low static friction prevents sticking
+      frictionAir: 0.008,      // Slight air resistance
       density: 0.001 * this.settings.ballMass,
-      // CRITICAL: bullet mode for continuous collision detection
-      isSleeping: false,
-      slop: 0.01,
+      isSleeping: false,       // Never sleep
+      slop: 0.005,             // Tighter collision tolerance
       collisionFilter: { category: 0x0001, mask: 0xFFFF },
       render: { fillStyle: '#ff006e', strokeStyle: '#00f5ff', lineWidth: 3 },
     });
@@ -455,7 +492,7 @@ export class PinballEngine {
       });
     });
 
-    // Ball trail + fallback drain check
+    // Ball trail + fallback drain check + anti-stuck system
     Events.on(this.engine, 'afterUpdate', () => {
       if (!this.ball || this.isGameOver) return;
       
@@ -465,8 +502,155 @@ export class PinballEngine {
       // Fallback drain check
       if (this.drainEnabled && this.ballLaunched && this.ball.position.y > this.height + 50) {
         this.handleGameOver();
+        return;
+      }
+
+      // Anti-stuck system (only when ball is launched and in play)
+      if (this.ballLaunched && !this.isGameOver) {
+        this.checkAndFixStuck();
       }
     });
+
+    // Handle active collisions for position correction
+    Events.on(this.engine, 'collisionActive', (event) => {
+      if (!this.ball || this.isGameOver) return;
+      this.handleActiveCollisionsPinball(event);
+    });
+  }
+
+  /**
+   * Comprehensive anti-stuck detection and correction for pinball
+   */
+  checkAndFixStuck() {
+    const pos = this.ball.position;
+    const vel = this.ball.velocity;
+    const speed = Vector.magnitude(vel);
+    const sd = this.stuckDetection;
+
+    // Skip if ball is in launch tube or near drain
+    if (pos.x > this.width - 50 || pos.y > this.height - 80) {
+      this.resetPinballStuckDetection();
+      return;
+    }
+
+    // 1. Jitter detection
+    if (speed < PINBALL_PHYSICS.JITTER_THRESHOLD && speed > 0.01) {
+      const velFlipped = (vel.x * sd.lastVelocity.x < 0) || (vel.y * sd.lastVelocity.y < 0);
+      if (velFlipped) {
+        sd.jitterCount++;
+        if (sd.jitterCount > 10) {
+          this.applyPinballJitterFix();
+          sd.jitterCount = 0;
+        }
+      }
+    } else {
+      sd.jitterCount = Math.max(0, sd.jitterCount - 1);
+    }
+
+    // 2. General stuck detection
+    if (speed < PINBALL_PHYSICS.STUCK_VELOCITY_THRESHOLD) {
+      sd.stallFrames++;
+      if (sd.stallFrames > PINBALL_PHYSICS.STUCK_FRAMES_THRESHOLD) {
+        this.applyPinballNudge();
+        sd.stallFrames = 0;
+      }
+    } else {
+      sd.stallFrames = Math.max(0, sd.stallFrames - 2);
+    }
+
+    // 3. Corner stuck detection (near walls)
+    const nearLeftWall = pos.x < PINBALL_PHYSICS.WALL_MARGIN;
+    const nearRightWall = pos.x > this.width - 60; // Account for launch tube
+    const nearCorner = (nearLeftWall || nearRightWall) && speed < PINBALL_PHYSICS.STUCK_VELOCITY_THRESHOLD * 1.5;
+
+    if (nearCorner) {
+      sd.cornerFrames++;
+      if (sd.cornerFrames > PINBALL_PHYSICS.CORNER_FRAMES_THRESHOLD) {
+        this.applyPinballCornerEscape(nearLeftWall);
+        sd.cornerFrames = 0;
+      }
+    } else {
+      sd.cornerFrames = Math.max(0, sd.cornerFrames - 1);
+    }
+
+    // Update tracking
+    sd.lastPosition = { x: pos.x, y: pos.y };
+    sd.lastVelocity = { x: vel.x, y: vel.y };
+  }
+
+  applyPinballJitterFix() {
+    if (!this.ball) return;
+    const vel = this.ball.velocity;
+    Body.setVelocity(this.ball, {
+      x: vel.x * PINBALL_PHYSICS.JITTER_DAMPING,
+      y: Math.max(vel.y * PINBALL_PHYSICS.JITTER_DAMPING, 1.0),
+    });
+    console.log('%c🔧 Pinball jitter fix applied', 'color: #00f5ff;');
+  }
+
+  applyPinballNudge() {
+    if (!this.ball) return;
+    const vel = this.ball.velocity;
+    const nudgeStrength = PINBALL_PHYSICS.NUDGE_FORCE_MIN + 
+      Math.random() * (PINBALL_PHYSICS.NUDGE_FORCE_MAX - PINBALL_PHYSICS.NUDGE_FORCE_MIN);
+    const angle = (Math.random() - 0.5) * Math.PI * 0.5;
+    
+    Body.setVelocity(this.ball, {
+      x: vel.x + Math.sin(angle) * nudgeStrength,
+      y: vel.y + Math.cos(angle) * nudgeStrength * 0.5 + 0.5,
+    });
+    console.log('%c⚡ Pinball anti-stuck nudge', 'color: #ffd700;');
+  }
+
+  applyPinballCornerEscape(isLeftWall) {
+    if (!this.ball) return;
+    const escapeX = isLeftWall ? 2.5 : -2.5;
+    Body.setVelocity(this.ball, { x: escapeX, y: 1.5 });
+    
+    const offsetX = isLeftWall ? PINBALL_PHYSICS.COLLISION_OFFSET * 2 : -PINBALL_PHYSICS.COLLISION_OFFSET * 2;
+    Body.setPosition(this.ball, {
+      x: this.ball.position.x + offsetX,
+      y: this.ball.position.y,
+    });
+    console.log(`%c🚀 Pinball corner escape (${isLeftWall ? 'left' : 'right'})`, 'color: #ff006e;');
+  }
+
+  handleActiveCollisionsPinball(event) {
+    event.pairs.forEach((pair) => {
+      if (pair.bodyA.label !== 'ball' && pair.bodyB.label !== 'ball') return;
+      
+      const ball = pair.bodyA.label === 'ball' ? pair.bodyA : pair.bodyB;
+      const other = pair.bodyA.label === 'ball' ? pair.bodyB : pair.bodyA;
+      
+      if (other.isSensor) return;
+      
+      const dx = ball.position.x - other.position.x;
+      const dy = ball.position.y - other.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < 0.01) return;
+      
+      const ballRadius = ball.circleRadius || 12;
+      const otherRadius = other.circleRadius || (other.isStatic ? 5 : 10);
+      const minDist = ballRadius + otherRadius;
+      
+      if (dist < minDist * 0.95) { // Only correct significant overlaps
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        
+        Body.setPosition(ball, {
+          x: ball.position.x + nx * overlap * 1.1,
+          y: ball.position.y + ny * overlap * 1.1,
+        });
+      }
+    });
+  }
+
+  resetPinballStuckDetection() {
+    this.stuckDetection.stallFrames = 0;
+    this.stuckDetection.cornerFrames = 0;
+    this.stuckDetection.jitterCount = 0;
   }
 
   handleBumperHit(bumper) {
@@ -642,6 +826,9 @@ export class PinballEngine {
     this.drainEnabled = false;
     this.leftPressed = false;
     this.rightPressed = false;
+    
+    // Reset anti-stuck tracking
+    this.resetPinballStuckDetection();
 
     // Reset ball position
     Body.setPosition(this.ball, { x: this.width - 25, y: this.height - 60 });
