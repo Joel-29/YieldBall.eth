@@ -205,3 +205,40 @@ body::before {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Gradient animation for high-value buttons */
+@keyframes gradient-x {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+/* Slide up animation for modals */
+@keyframes slide-up {
+  0% { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}
+
+/* Bucket glow animation */
+@keyframes bucket-glow {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.05); }
+}
+
+.animate-bucket-glow {
+  animation: bucket-glow 2s ease-in-out infinite;
+}

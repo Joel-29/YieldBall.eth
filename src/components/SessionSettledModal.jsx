@@ -1,5 +1,6 @@
 import React from 'react';
 import { NeonButton, NeonText } from './ui/NeonElements.jsx';
+import { ElectricBorder } from './ui/ElectricBorder.jsx';
 
 export function SessionSettledModal({ 
   isOpen, 
@@ -18,16 +19,21 @@ export function SessionSettledModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop with blur */}
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
+      {/* Backdrop with blur - Galaxy visible behind */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-xl" />
       
-      {/* Glassmorphism Modal */}
+      {/* Glassmorphism Modal with Electric Border */}
       <div className="relative w-full max-w-md">
-        {/* Glow effect behind modal */}
-        <div className="absolute -inset-2 bg-gradient-to-r from-neon-pink via-neon-purple to-neon-cyan rounded-3xl blur-2xl opacity-40 animate-pulse" />
-        
+        <ElectricBorder
+          colorFrom="#00f2ff"
+          colorTo="#7000ff"
+          borderWidth={3}
+          glowIntensity={1.2}
+          pulseSpeed={2}
+          cornerRadius={24}
+        >
         {/* Modal content with glassmorphism */}
-        <div className="relative bg-gradient-to-b from-cyber-dark/95 to-cyber-darker/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-8 shadow-2xl">
+        <div className="relative bg-gradient-to-b from-cyber-dark/80 to-cyber-darker/80 backdrop-blur-2xl border border-transparent rounded-2xl p-8 shadow-2xl">
           {/* Inner glow border */}
           <div className="absolute inset-0 rounded-2xl border-2 border-neon-purple/40 pointer-events-none" />
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
@@ -118,6 +124,7 @@ export function SessionSettledModal({
             💰 Claim & Withdraw
           </NeonButton>
         </div>
+        </ElectricBorder>
       </div>
     </div>
   );

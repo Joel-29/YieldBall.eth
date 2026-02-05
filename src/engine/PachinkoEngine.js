@@ -43,43 +43,49 @@ export const PHYSICS_CONFIG = {
 };
 
 // Ball configurations based on ENS class
-// Physics tuned for NATURAL Pachinko feel with anti-stuck properties
+// Physics tuned for HIGH-VELOCITY arcade feel with anti-stuck properties
 export const BALL_CONFIGS = {
   whale: {
     scale: 1.5,
     mass: 3,
-    restitution: 0.55,    // Slightly higher for heavier ball
-    friction: 0.008,      // Lower friction reduces sticking
-    frictionAir: 0.012,   // Natural air resistance
-    frictionStatic: 0.02, // Low static friction prevents sticking
-    slop: 0.02,           // Tighter collision tolerance
+    restitution: 0.4,     // Lower bounce at high speed prevents flying off
+    friction: 0.006,      // Lower friction for speed
+    frictionAir: 0.008,   // LOW air friction - ball maintains speed
+    frictionStatic: 0.015,
+    slop: 0.02,
     color: '#ffd700',
     label: '🐋 Whale',
     yieldMultiplier: 1.0,
+    speedMultiplier: 1.0, // Base speed
+    description: 'Heavy ball, hard to bounce',
   },
   degen: {
     scale: 0.7,
     mass: 1,
-    restitution: 0.52,    // Slightly variable restitution
-    friction: 0.006,
-    frictionAir: 0.008,
-    frictionStatic: 0.015,
+    restitution: 0.45,    // Slightly higher for degen chaos
+    friction: 0.004,
+    frictionAir: 0.006,   // VERY LOW air friction - max speed!
+    frictionStatic: 0.01,
     slop: 0.02,
     color: '#ff006e',
     label: '🔥 Degen',
     yieldMultiplier: 2.0,
+    speedMultiplier: 1.2, // 1.2x speed boost for Degen class!
+    description: 'Small & fast, 2x Yield!',
   },
   default: {
     scale: 1.0,
     mass: 1,
-    restitution: 0.53,    // Asymmetric value prevents perfect bounces
-    friction: 0.007,
-    frictionAir: 0.01,
-    frictionStatic: 0.018,
+    restitution: 0.42,    // Balanced bounce
+    friction: 0.005,
+    frictionAir: 0.008,   // LOW air friction for snappy gameplay
+    frictionStatic: 0.012,
     slop: 0.02,
     color: '#c0c0c0',
     label: '⚡ Standard',
     yieldMultiplier: 1.0,
+    speedMultiplier: 1.0,
+    description: 'Balanced ball',
   },
 };
 
@@ -99,6 +105,9 @@ export class PachinkoEngine {
     this.height = 700;
     this.ensClass = options.ensClass || 'default';
     this.ballConfig = BALL_CONFIGS[this.ensClass] || BALL_CONFIGS.default;
+    
+    // ENS Speed Multiplier - Degen gets 1.2x gravity for even faster gameplay
+    this.speedMultiplier = this.ballConfig.speedMultiplier || 1.0;
     
     // Callbacks
     this.onPegHit = options.onPegHit || (() => {});
@@ -132,14 +141,16 @@ export class PachinkoEngine {
   }
 
   init() {
-    // 1. Create Engine with NATURAL physics (standard Pachinko feel)
+    // 1. Create Engine with HIGH-VELOCITY physics (aggressive arcade feel)
     this.engine = Engine.create({
       enableSleeping: false,
-      positionIterations: 6,
-      velocityIterations: 4,
+      positionIterations: 8,   // More iterations for faster collisions
+      velocityIterations: 6,
     });
     this.engine.gravity.y = 1;
-    this.engine.gravity.scale = 0.001; // Standard realistic gravity
+    // HIGH-VELOCITY: 0.002 gravity scale for aggressive downward pull
+    // ENS Degen class gets 1.2x gravity multiplier!
+    this.engine.gravity.scale = 0.002 * this.speedMultiplier;
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -238,16 +249,16 @@ export class PachinkoEngine {
         const colorIndex = (row + col) % 3;
         const colors = ['#ff006e', '#00f5ff', '#8b5cf6'];
 
-        // Slightly vary restitution per peg to prevent perfectly symmetric bounces
-        // This creates natural-feeling randomness without being obvious
+        // HIGH-VELOCITY: Lower peg restitution (0.5) prevents wild bounces at speed
+        // Slight variation per peg prevents perfectly symmetric bounces
         const pegVariation = ((row * 7 + col * 13) % 100) / 1000; // 0 to 0.099
-        const pegRestitution = 0.55 + pegVariation; // 0.55 to 0.649
+        const pegRestitution = 0.5 + (pegVariation * 0.5); // 0.5 to 0.55 range
 
         const peg = Bodies.circle(x, y, pegRadius, {
           isStatic: true,
           restitution: pegRestitution,
-          friction: 0.005 + (pegVariation / 2), // Slight friction variation
-          frictionStatic: 0.01,
+          friction: 0.003 + (pegVariation / 3), // Lower friction for speed
+          frictionStatic: 0.008,
           slop: 0.01,
           label: `peg-${row}-${col}`,
           render: {
@@ -738,23 +749,34 @@ export class PachinkoEngine {
 
     Composite.add(this.engine.world, this.ball);
     
-    // Deterministic initial nudge based on drop position (prevents symmetric paths)
-    const initialNudgeX = (this.seededRandom(0) - 0.5) * 0.8;
-    Body.setVelocity(this.ball, { x: initialNudgeX, y: 3 });
+    // HIGH-VELOCITY: Apply strong initial downward velocity
+    // ENS Speed Multiplier: Degen class gets 1.2x speed boost!
+    const speedMultiplier = this.ballConfig.speedMultiplier || 1.0;
+    const initialNudgeX = (this.seededRandom(0) - 0.5) * 2; // Wider horizontal variance
+    const initialVelocityY = 5 * speedMultiplier; // Base 5, boosted for Degen
+    
+    Body.setVelocity(this.ball, { x: initialNudgeX, y: initialVelocityY });
     
     this.isPlaying = true;
     this.pegHitCount = 0;
     this.resetStuckDetection();
     
     this.onBallDrop();
-    console.log(`%c🎱 Ball dropped! Seed: ${this.stuckDetection.dropSeed} (${this.ballConfig.label})`, 'color: #00f5ff;');
+    console.log(`%c🎱 Ball dropped! Speed: ${speedMultiplier}x, Seed: ${this.stuckDetection.dropSeed} (${this.ballConfig.label})`, 'color: #00f5ff;');
   }
 
-  // Update ENS class and reconfigure ball
+  // Update ENS class and reconfigure ball (including speed multiplier)
   setEnsClass(ensClass) {
     this.ensClass = ensClass;
     this.ballConfig = BALL_CONFIGS[ensClass] || BALL_CONFIGS.default;
-    console.log(`%c🔗 ENS Class set to: ${ensClass}`, 'color: #8b5cf6;');
+    this.speedMultiplier = this.ballConfig.speedMultiplier || 1.0;
+    
+    // Update gravity for ENS speed multiplier
+    if (this.engine) {
+      this.engine.gravity.scale = 0.002 * this.speedMultiplier;
+    }
+    
+    console.log(`%c🔗 ENS Class set to: ${ensClass} (Speed: ${this.speedMultiplier}x)`, 'color: #8b5cf6;');
   }
 
   // Reset for new game

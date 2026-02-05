@@ -4,6 +4,7 @@ import { parseUnits, formatUnits } from 'viem';
 import { CheckCircle, Coins, TrendingUp, Zap, ArrowRight, Wallet, Loader2, ExternalLink, AlertCircle, Gift } from 'lucide-react';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './ui/ShinyText.jsx';
 import PixelSnow from './ui/PixelSnow.jsx';
+import { ElectricBorder } from './ui/ElectricBorder.jsx';
 import { 
   VAULT_ADDRESS, 
   VAULT_ABI, 
@@ -175,9 +176,9 @@ export function SettlementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      {/* Transparent backdrop - Galaxy visible behind */}
+      {/* Transparent backdrop - Galaxy visible behind with deep blur */}
       <div 
-        className="absolute inset-0 bg-black/10 backdrop-blur-md"
+        className="absolute inset-0 bg-black/40 backdrop-blur-xl"
       />
       
       {/* Pixel Snow Effect - Celebratory falling particles */}
@@ -193,17 +194,20 @@ export function SettlementModal({
       
       {/* Modal with slide-up animation */}
       <div className="relative w-full max-w-md animate-slide-up">
-        {/* Cosmic Glow effect */}
-        <div 
-          className="absolute -inset-4 rounded-3xl blur-3xl opacity-30 animate-bucket-glow"
-          style={{ background: `linear-gradient(135deg, ${bucket.color}, #8b5cf6, #00f5ff)` }}
-        />
-        
-        {/* Content with Glass Effect */}
-        <GlassmorphicCard 
-          className="p-8 backdrop-blur-xl bg-black/40 border-white/20"
-          glowColor={bucket.color}
+        {/* ELECTRIC BORDER - The high-value settlement effect! */}
+        <ElectricBorder
+          colorFrom="#00f2ff"  // Electric Cyan
+          colorTo="#7000ff"    // Deep Purple
+          borderWidth={3}
+          glowIntensity={1.2}
+          pulseSpeed={2}
+          cornerRadius={24}
         >
+          {/* Content with Glass Effect - transparent for Galaxy visibility */}
+          <GlassmorphicCard 
+            className="p-8 backdrop-blur-xl bg-black/40 border-transparent"
+            glowColor={bucket.color}
+          >
           
           {/* Off-Chain Success Banner */}
           <div className="bg-neon-yellow/20 border-2 border-neon-yellow rounded-xl p-4 mb-6">
@@ -414,12 +418,12 @@ export function SettlementModal({
 
           {/* Actions */}
           <div className="space-y-3">
-            {/* Main CTA - Finalize on Base/Sepolia */}
+            {/* Main CTA - Finalize on Base/Sepolia - HIGH-VALUE EVENT STYLING */}
             {!isConfirmed && (
               <button
                 onClick={handleFinalizeOnChain}
                 disabled={isLoading}
-                className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl font-arcade text-white text-lg flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 px-6 bg-gradient-to-r from-[#00f2ff] via-[#7000ff] to-[#00f2ff] bg-[length:200%_100%] animate-gradient-x rounded-xl font-arcade text-white text-lg flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-lg shadow-[#7000ff]/50 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-[#00f2ff]/50"
               >
                 {isLoading ? (
                   <>
@@ -429,7 +433,7 @@ export function SettlementModal({
                 ) : (
                   <>
                     <Wallet className="w-5 h-5" />
-                    Finalize on Base/Sepolia
+                    ⚡ Finalize on Base ⚡
                   </>
                 )}
               </button>
@@ -471,6 +475,7 @@ export function SettlementModal({
             </p>
           </div>
         </GlassmorphicCard>
+        </ElectricBorder>
       </div>
     </div>
   );
