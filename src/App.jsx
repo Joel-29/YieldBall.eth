@@ -8,6 +8,7 @@ import { useYieldBallClass, formatAddress, getMockClass } from './hooks/useEnsId
 import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
 import { Galaxy } from './components/ui/Galaxy.jsx';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
+import StarCursor from './components/ui/StarCursor.jsx';
 
 function App() {
   const { isConnected, address } = useAccount();
@@ -45,6 +46,16 @@ function App() {
     <div className="relative min-h-screen w-full overflow-hidden bg-[#020617]">
       {/* Galaxy Background - Fixed at z-0, static calm speed, never reacts to game */}
       <Galaxy speed={0.2} density={1.5} />
+      
+      {/* Star Cursor - Cosmic star trail effect at z-[9999], pointer-events: none */}
+      <StarCursor 
+        starCount={15}
+        starSize={4}
+        trailLength={12}
+        colors={['#00f2ff', '#7000ff', '#ffffff', '#fbbf24']}
+        glowIntensity={12}
+        speed={0.12}
+      />
       
       {/* Main Content Container - z-index 10 */}
       <div className="relative z-10">
@@ -135,10 +146,10 @@ function App() {
             <GlassmorphicCard className="p-6 mb-8" glowColor="#8b5cf6">
               <h3 className="font-arcade text-sm text-gray-400 mb-4">YOUR BALL</h3>
               
-              {/* Shiny Thunder Symbol in Circle */}
-              <div className="flex justify-center mb-6">
+              <div className="flex items-center gap-6">
+                {/* Shiny Thunder Symbol in Circle - Left side */}
                 <div 
-                  className="w-24 h-24 rounded-full flex items-center justify-center relative"
+                  className="w-20 h-20 rounded-full flex items-center justify-center relative flex-shrink-0"
                   style={{
                     background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)',
                     boxShadow: '0 0 40px rgba(251, 191, 36, 0.4), 0 0 80px rgba(251, 191, 36, 0.2), inset 0 0 20px rgba(251, 191, 36, 0.1)',
@@ -150,7 +161,7 @@ function App() {
                   {/* Thunder bolt - thick and shiny */}
                   <svg 
                     viewBox="0 0 24 24" 
-                    className="w-14 h-14"
+                    className="w-12 h-12"
                     style={{
                       filter: 'drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #fbbf24)',
                     }}
@@ -170,19 +181,6 @@ function App() {
                       </linearGradient>
                     </defs>
                   </svg>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                {/* Ball Preview */}
-                <div 
-                  className="w-20 h-20 rounded-full flex items-center justify-center animate-pulse"
-                  style={{ 
-                    backgroundColor: effectiveBallConfig.color,
-                    boxShadow: `0 0 30px ${effectiveBallConfig.color}80`,
-                  }}
-                >
-                  <span className="text-2xl">{effectiveBallConfig.label.split(' ')[0]}</span>
                 </div>
 
                 <div className="flex-1">
@@ -352,11 +350,12 @@ function App() {
       <footer className="border-t border-white/10 py-8 px-4 backdrop-blur-xl bg-black/30">
         <div className="max-w-6xl mx-auto text-center">
           <ShinyText variant="silver" className="font-mono text-sm">
-            YieldBall.eth © 2026 • Built with 💜 for the Web3 Gaming Hackathon
+            YieldBall.eth © 2026 
           </ShinyText>
-          <p className="text-gray-600 font-mono text-xs mt-2">
-            Powered by Aave V3 • Yellow Network • ENS
-          </p>
+          <br />
+           <ShinyText variant="silver" className="font-mono text-sm">
+            Stop watching your yield. Start playing with it.
+          </ShinyText>
         </div>
       </footer>
       </div>
