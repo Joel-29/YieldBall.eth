@@ -1,0 +1,78 @@
+/**
+ * ElectricBorder CSS - ReactBits Style
+ * Animated electric border with canvas-based noise effects
+ */
+
+.eb-container {
+  --electric-border-color: var(--eb-color, #7df9ff);
+  position: relative;
+  display: inline-block;
+}
+
+.eb-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.eb-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: var(--electric-border-color);
+  opacity: 0;
+  filter: blur(20px);
+  animation: eb-glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.eb-content {
+  position: relative;
+  z-index: 20;
+  border-radius: inherit;
+}
+
+/* Glow pulse animation */
+@keyframes eb-glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.02);
+  }
+}
+
+/* Inner highlight effect */
+.eb-inner-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 
+    inset 0 0 30px var(--electric-border-color),
+    inset 0 0 60px rgba(125, 249, 255, 0.1);
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0.4;
+}
+
+/* Scanline effect overlay */
+.eb-scanlines {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 25;
+}
