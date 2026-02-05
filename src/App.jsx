@@ -4,6 +4,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Info, Coins, Zap, Fingerprint, ChevronDown, ChevronUp } from 'lucide-react';
 import { PachinkoGame } from './components/PachinkoGame.jsx';
 import { SettlementModal } from './components/SettlementModal.jsx';
+import { ContractTester } from './components/ContractTester.jsx';
 import { useYieldBallClass, formatAddress, getMockClass } from './hooks/useEnsIdentity.js';
 import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
 import { Galaxy } from './components/ui/Galaxy.jsx';
@@ -18,6 +19,9 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [settlement, setSettlement] = useState(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+
+  // Check if we're on the test route
+  const isTestRoute = window.location.pathname === '/test' || window.location.search.includes('test=true');
 
   // Use mock class for demo if not connected or no ENS class
   const effectiveClass = yieldballClass !== 'default' ? yieldballClass : getMockClass(address);
@@ -41,6 +45,11 @@ function App() {
   const handlePlayAgain = () => {
     setSettlement(null);
   };
+
+  // Render Contract Tester if on test route
+  if (isTestRoute) {
+    return <ContractTester />;
+  }
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#020617]">
