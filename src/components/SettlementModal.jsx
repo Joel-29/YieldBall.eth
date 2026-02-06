@@ -104,13 +104,18 @@ export function SettlementModal({
       }
     }
 
-    // Call vault withdraw function
+    console.log('%c💸 Finalizing settlement...', 'color: #7df9ff; font-weight: bold;');
+    console.log('Principal:', principal, 'USDC');
+    console.log('Yield:', finalYield.toFixed(6), 'USDC');
+
+    // Call vault withdraw function with gas limit
     writeContract({
       address: VAULT_ADDRESS,
       abi: VAULT_ABI,
       functionName: 'withdraw',
       args: [principalUnits, yieldUnits],
       chainId: TARGET_CHAIN_ID,
+      gas: 150000n,
     });
   };
 
@@ -151,6 +156,7 @@ export function SettlementModal({
         functionName: 'mint',
         args: [address, BigInt(REWARD_AMOUNT_WEI)],
         chainId: TARGET_CHAIN_ID,
+        gas: 150000n,
       });
     } catch (err) {
       console.error('❌ Mint transaction failed:', err);

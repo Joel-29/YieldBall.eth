@@ -67,6 +67,7 @@ function SplashCursor({
     };
 
     let pointers = [new pointerPrototype()];
+    pointers[0].color = [0.2, 0.6, 1]; // Initialize with cyan color
 
     const { gl, ext } = getWebGLContext(canvas);
     if (!ext.supportLinearFiltering) {
@@ -866,9 +867,9 @@ function SplashCursor({
       // Pick from cosmic palette instead of random HSV
       const color = cosmicColors[Math.floor(Math.random() * cosmicColors.length)];
       return {
-        r: color.r * 0.15,
-        g: color.g * 0.15,
-        b: color.b * 0.15
+        r: color.r * 0.5,
+        g: color.g * 0.5,
+        b: color.b * 0.5
       };
     }
 
@@ -964,24 +965,23 @@ function SplashCursor({
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
-
-    canvas.addEventListener('mousemove', e => {
+    
+    // Track mouse globally since canvas has pointer-events: none
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    
+    window.addEventListener('mousemove', e => {
       let pointer = pointers[0];
-      let posX = e.offsetX;
-      let posY = e.offsetY;
-      updatePointerMoveData(pointer, posX, posY);
-    });
-
-    canvas.addEventListener('mousedown', e => {
-      let pointer = pointers[0];
-      let posX = e.offsetX;
-      let posY = e.offsetY;
-      updatePointerDownData(pointer, -1, posX, posY);
-      clickSplat(pointer);
-    });
-
-    window.addEventListener('mouseup', () => {
-      updatePointerUpData(pointers[0]);
+      const rect = canvas.getBoundingClientRect();
+      let posX = e.clientX - rect.left;
+      let posY = e.clientY - rect.top;
+      
+      // Only update if mouse actually moved
+      if (posX !== lastMouseX || posY !== lastMouseY) {
+        updatePointerMoveData(pointer, posX, posY);
+        lastMouseX = posX;
+        lastMouseY = posY;
+      }
     });
 
     canvas.addEventListener('touchstart', e => {
@@ -1065,14 +1065,16 @@ function SplashCursor({
   ]);
 
   return (
-    <div className="fixed top-0 left-0 z-[9999] pointer-events-none w-full h-full">
-      <canvas 
-        ref={canvasRef} 
-        id="fluid" 
-        className="w-screen h-screen block pointer-events-auto"
-        style={{ cursor: 'none' }}
-      />
-    </div>
+    <canvas 
+      ref={canvasRef} 
+      id="fluid" 
+      className="fixed top-0 left-0 w-screen h-screen block pointer-events-none"
+      style={{ 
+        zIndex: 9999,
+        pointerEvents: 'none',
+        cursor: 'none'
+      }}
+    />
   );
 }
 

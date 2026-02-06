@@ -33,21 +33,21 @@ export const USDC_ADDRESS_BASE_SEPOLIA =
 // YIELDBALL CONTRACTS (Base Sepolia)
 // ============================================================
 
-// YieldBall Vault / Game logic contract
+// YieldBall Vault / Game logic contract (Game Gate)
 export const VAULT_ADDRESS =
-  '0x7190A1d20B27aAa60C89B70801080386c04f534b';
+  '0x51b442D4e65e8a45154eD86B7fdB54C24aC092aA';
 
 // YieldBall Game Contract
 export const GAME_CONTRACT_ADDRESS =
-  '0x7190A1d20B27aAa60C89B70801080386c04f534b';
+  '0x51b442D4e65e8a45154eD86B7fdB54C24aC092aA';
 
 // ============================================================
 // YIELDBALL ERC-20 TOKEN
 // ============================================================
 
-// REAL ERC-20 Reward Token (from Remix: YieldBallToken)
+// REAL ERC-20 Reward Token (YieldBall Token - YBT)
 export const YBT_TOKEN_ADDRESS =
-  '0x9BF5552ad0C7D27F39Dff98DCefD74a1CC31C765';
+  '0xe60663D921b1003e8d129a8B6EBA0c40a867339a';
 
 // Reward amount shown in UI (10 YBT)
 export const REWARD_AMOUNT_DISPLAY = '10';
@@ -79,8 +79,8 @@ export const VAULT_ABI = [
   {
     name: 'deposit',
     type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'amount', type: 'uint256' }],
+    stateMutability: 'payable',
+    inputs: [],
     outputs: [],
   },
   {
@@ -225,7 +225,7 @@ export const YBT_ABI = [
       { name: 'to', type: 'address' },
       { name: 'amount', type: 'uint256' },
     ],
-    outputs: [{ name: '', type: 'bool' }],
+    outputs: [],
   },
   {
     name: 'Transfer',

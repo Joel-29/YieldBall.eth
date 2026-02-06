@@ -62,7 +62,7 @@ export const BALL_CONFIGS = {
   degen: {
     scale: 0.7,
     mass: 1,
-    restitution: 0.45,    // Slightly higher for degen chaos
+    restitution: 0.9,     // HIGH restitution for degen bouncy chaos
     friction: 0.004,
     frictionAir: 0.006,   // VERY LOW air friction - max speed!
     frictionStatic: 0.01,
@@ -148,9 +148,9 @@ export class PachinkoEngine {
       velocityIterations: 6,
     });
     this.engine.gravity.y = 1;
-    // HIGH-VELOCITY: 0.002 gravity scale for aggressive downward pull
+    // ARCADE NORMAL: 0.0015 gravity scale for calibrated gameplay
     // ENS Degen class gets 1.2x gravity multiplier!
-    this.engine.gravity.scale = 0.002 * this.speedMultiplier;
+    this.engine.gravity.scale = 0.0015 * this.speedMultiplier;
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -542,11 +542,30 @@ export class PachinkoEngine {
 
   /**
    * Apply gentle nudge to free stuck ball
+   * STALL DETECTOR: Gives tiny horizontal nudge if velocity hits zero
    */
   applyAntiStuckNudge(reason) {
     if (!this.ball) return;
     
     const vel = this.ball.velocity;
+    const speed = Vector.magnitude(vel);
+    
+    // If velocity is essentially zero, apply pure horizontal nudge
+    if (speed < 0.1) {
+      const horizontalDirection = this.seededRandom(Date.now()) > 0.5 ? 1 : -1;
+      const nudgeX = horizontalDirection * (PHYSICS_CONFIG.NUDGE_FORCE_MIN + 0.5);
+      const nudgeY = PHYSICS_CONFIG.NUDGE_DOWNWARD_BIAS * 0.5;
+      
+      Body.setVelocity(this.ball, {
+        x: nudgeX,
+        y: nudgeY,
+      });
+      
+      console.log(`%c⚡ Stall Detector: Horizontal nudge (velocity was ~0)`, 'color: #ff006e;');
+      return;
+    }
+    
+    // Otherwise, normal anti-stuck nudge
     const nudgeStrength = PHYSICS_CONFIG.NUDGE_FORCE_MIN + 
       this.seededRandom(this.stuckDetection.stallFrames) * 
       (PHYSICS_CONFIG.NUDGE_FORCE_MAX - PHYSICS_CONFIG.NUDGE_FORCE_MIN);
@@ -773,7 +792,7 @@ export class PachinkoEngine {
     
     // Update gravity for ENS speed multiplier
     if (this.engine) {
-      this.engine.gravity.scale = 0.002 * this.speedMultiplier;
+      this.engine.gravity.scale = 0.0015 * this.speedMultiplier;
     }
     
     console.log(`%c🔗 ENS Class set to: ${ensClass} (Speed: ${this.speedMultiplier}x)`, 'color: #8b5cf6;');
@@ -790,7 +809,7 @@ export class PachinkoEngine {
     this.resetStuckDetection();
   }
 
-  // Cleanup (THE CLEANUP - Stops the bugs!)
+  // Cleanup (THE CLEANUP - Stops the bugs and prevents memory leaks!)
   destroy() {
     if (this.render?.canvas) {
       this.render.canvas.removeEventListener('click', this.handleClick);

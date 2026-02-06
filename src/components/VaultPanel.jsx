@@ -1,20 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useEnsName, usePublicClient } from 'wagmi';
+import { useAccount, useEnsName, usePublicClient, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { NeonButton, NeonCard, NeonText } from './ui/NeonElements.jsx';
+import { ShinyText } from './ui/ShinyText.jsx';
 import { checkYieldBallClass, getMockPlayerClass } from '../utils/ensIntegration.js';
+import { VAULT_ADDRESS, VAULT_ABI, TARGET_CHAIN_ID } from '../config/wagmi.js';
+import { Loader2 } from 'lucide-react';
 
 export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { data: ensName } = useEnsName({ address });
   const publicClient = usePublicClient();
+  const { switchChain } = useSwitchChain();
   const [isLoading, setIsLoading] = useState(false);
   const [detectedClass, setDetectedClass] = useState(null);
+
+  // Deposit transaction hooks
+  const { 
+    writeContract, 
+    data: txHash, 
+    isPending: isWritePending,
+    error: writeError,
+  } = useWriteContract();
+
+  // Wait for transaction confirmation
+  const { 
+    isLoading: isConfirming, 
+    isSuccess: isConfirmed,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  // Handle successful deposit - only start game after transaction confirms
+  useEffect(() => {
+    if (isConfirmed && detectedClass) {
+      console.log('%c✅ Deposit confirmed! Starting game...', 'color: #22c55e; font-weight: bold;');
+      onDeposit(detectedClass);
+      setIsLoading(false);
+    }
+  }, [isConfirmed, detectedClass, onDeposit]);
 
   const handleDeposit = async () => {
     setIsLoading(true);
     
     try {
+      // Check if on correct chain
+      if (chainId !== TARGET_CHAIN_ID) {
+        console.log('🔄 Switching to Base Sepolia...');
+        try {
+          await switchChain({ chainId: TARGET_CHAIN_ID });
+        } catch (err) {
+          console.error('Failed to switch chain:', err);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Check ENS for player class
       let playerClass = 'default';
       
@@ -32,16 +73,25 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
         }
       }
 
-      // Simulate contract interaction delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // If no class detected yet, set default
+      if (!detectedClass) {
+        setDetectedClass(playerClass);
+      }
       
       console.log(`%c🎮 Player Class: ${playerClass.toUpperCase()}`, 
         'color: #8b5cf6; font-weight: bold; font-size: 16px;');
+      console.log('%c💰 Calling Vault deposit()...', 'color: #fbbf24; font-weight: bold;');
       
-      onDeposit(playerClass);
+      // Call vault deposit function (payable, no args)
+      writeContract({
+        address: VAULT_ADDRESS,
+        abi: VAULT_ABI,
+        functionName: 'deposit',
+        chainId: TARGET_CHAIN_ID,
+        gas: 150000n,
+      });
     } catch (error) {
       console.error('Deposit failed:', error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -104,6 +154,22 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
         </div>
       )}
 
+      {/* Transaction Status Message */}
+      {(isWritePending || isConfirming) && (
+        <div className="mb-4 text-center">
+          <ShinyText variant="cyan" speed="fast" className="text-sm">
+            {isWritePending ? 'Confirm in Wallet...' : 'Authorizing Arcade Session on Base Sepolia...'}
+          </ShinyText>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {writeError && (
+        <div className="mb-4 text-center text-red-400 text-sm">
+          Transaction failed. Please try again.
+        </div>
+      )}
+
       {/* Connect or Deposit Button */}
       {!isConnected ? (
         <div className="flex justify-center">
@@ -115,12 +181,12 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
           variant="pink"
           size="lg"
           className="w-full"
-          disabled={isLoading || isDeposited}
+          disabled={isLoading || isDeposited || isWritePending || isConfirming}
         >
-          {isLoading ? (
+          {isWritePending || isConfirming ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="animate-spin">⚡</span>
-              Processing...
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {isWritePending ? 'Confirm in Wallet...' : 'Confirming...'}
             </span>
           ) : isDeposited ? (
             'Already Deposited'
