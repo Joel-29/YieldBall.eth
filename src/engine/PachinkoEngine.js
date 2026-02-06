@@ -232,19 +232,27 @@ export class PachinkoEngine {
   createPegGrid() {
     const pegRadius = 8;
     const startY = 120;
-    const rows = 12;
-    const pegSpacingX = 45;
-    const pegSpacingY = 45;
+    
+    // STAGGERED BOX GRID: Dense rectangular layout with zigzag effect
+    const rows = 10;
+    const cols = 11;
+    const horizontalSpacing = 42;
+    const verticalSpacing = 50;
+    
+    // Calculate starting X to center the grid
+    const gridWidth = (cols - 1) * horizontalSpacing;
+    const startX = (this.width - gridWidth) / 2;
 
-    // Create triangle grid pattern
+    // Create staggered rectangular box pattern
     for (let row = 0; row < rows; row++) {
-      const pegsInRow = row + 3;
-      const rowWidth = (pegsInRow - 1) * pegSpacingX;
-      const startX = (this.width - rowWidth) / 2;
-
-      for (let col = 0; col < pegsInRow; col++) {
-        const x = startX + col * pegSpacingX;
-        const y = startY + row * pegSpacingY;
+      for (let col = 0; col < cols; col++) {
+        let x = startX + col * horizontalSpacing;
+        const y = startY + row * verticalSpacing;
+        
+        // STAGGER: Even rows shift right by half spacing (zigzag effect)
+        if (row % 2 === 0) {
+          x += horizontalSpacing / 2;
+        }
 
         // Alternate colors for visual variety
         const colorIndex = (row + col) % 3;
