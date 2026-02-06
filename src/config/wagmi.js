@@ -18,7 +18,7 @@ export const config = getDefaultConfig({
   transports: {
     [baseSepolia.id]: http(),
     [sepolia.id]: http(),
-    [mainnet.id]: http(),
+    [mainnet.id]: http('https://eth.llamarpc.com'), // Public RPC with CORS support
   },
 });
 // ============================================================

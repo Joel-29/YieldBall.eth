@@ -31,6 +31,7 @@ export function PachinkoGame({
   const [isPegHitFlash, setIsPegHitFlash] = useState(false);
 
   // Yield accumulation: $0.0001 per second while ball is in play
+  // OPTIMIZED: Use 2-second interval instead of 1-second for better performance
   useEffect(() => {
     if (!isPlaying) {
       if (yieldIntervalRef.current) {
@@ -41,8 +42,8 @@ export function PachinkoGame({
     }
 
     yieldIntervalRef.current = setInterval(() => {
-      setLiveYield(prev => prev + 0.0001 * ballConfig.yieldMultiplier);
-    }, 1000);
+      setLiveYield(prev => prev + 0.0002 * ballConfig.yieldMultiplier);
+    }, 2000);
 
     return () => {
       if (yieldIntervalRef.current) {

@@ -185,15 +185,15 @@ export function SettlementModal({
       {/* Transparent backdrop - Galaxy Background visible (z-index: 0) */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-xl" style={{ zIndex: 0 }} />
       
-      {/* Pixel Snow Effect - Celebratory particles */}
+      {/* Pixel Snow Effect - Celebratory particles (optimized) */}
       <PixelSnow 
         color="#7df9ff"
         flakeSize={2}
         pixelSize={3}
         speed={2}
-        density={80}
+        density={40}
         direction={180}
-        brightness={0.7}
+        brightness={0.6}
       />
       
       {/* Modal Container with Electric Border (z-index: 10) */}

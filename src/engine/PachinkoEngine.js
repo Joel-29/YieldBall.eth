@@ -153,6 +153,7 @@ export class PachinkoEngine {
     this.engine.gravity.scale = 0.002 * this.speedMultiplier;
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
+    // OPTIMIZED: Limit pixelRatio to 1 for better performance
     this.render = Render.create({
       element: this.container,
       engine: this.engine,
@@ -161,7 +162,7 @@ export class PachinkoEngine {
         height: this.height,
         wireframes: false,
         background: 'transparent',
-        pixelRatio: window.devicePixelRatio || 1,
+        pixelRatio: 1, // Force 1:1 pixel ratio for performance
       },
     });
 

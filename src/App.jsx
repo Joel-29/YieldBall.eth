@@ -10,7 +10,6 @@ import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
 import { VAULT_ADDRESS, VAULT_ABI, TARGET_CHAIN_ID } from './config/wagmi.js';
 import { Galaxy } from './components/ui/Galaxy.jsx';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
-import StarCursor from './components/ui/StarCursor.jsx';
 
 function App() {
   const { isConnected, address, chainId } = useAccount();
@@ -111,18 +110,8 @@ function App() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#020617]">
-      {/* Galaxy Background - Fixed at z-0, static calm speed, never reacts to game */}
-      <Galaxy speed={0.2} density={1.5} />
-      
-      {/* Star Cursor - Cosmic star trail effect at z-[9999], pointer-events: none */}
-      <StarCursor 
-        starCount={15}
-        starSize={4}
-        trailLength={12}
-        colors={['#00f2ff', '#7000ff', '#ffffff', '#fbbf24']}
-        glowIntensity={12}
-        speed={0.12}
-      />
+      {/* Galaxy Background - Fixed at z-0, optimized for performance */}
+      <Galaxy speed={0.2} density={0.8} />
       
       {/* Main Content Container - z-index 10 */}
       <div className="relative z-10">

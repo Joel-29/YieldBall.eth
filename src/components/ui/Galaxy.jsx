@@ -100,50 +100,16 @@ class Star {
   }
 
   draw(ctx, warpFactor) {
+    // OPTIMIZED: Simpler rendering without expensive gradients
     ctx.save();
     
-    // Star glow
-    const glowSize = this.size * (warpFactor > 1 ? 3 : 2);
-    const gradient = ctx.createRadialGradient(
-      this.x, this.y, 0,
-      this.x, this.y, glowSize
-    );
-    gradient.addColorStop(0, this.color);
-    gradient.addColorStop(0.5, this.color + '80');
-    gradient.addColorStop(1, 'transparent');
-    
-    ctx.globalAlpha = this.brightness * (warpFactor > 1 ? 1 : 0.8);
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Core
-    ctx.globalAlpha = this.brightness;
+    // Single star with alpha blending (no gradient)
+    const twinkle = Math.sin(this.twinklePhase) * 0.3 + 0.7;
+    ctx.globalAlpha = this.brightness * twinkle * 0.8;
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Warp streak effect
-    if (warpFactor > 1.5) {
-      const { width, height } = this.canvas;
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const dx = this.x - centerX;
-      const dy = this.y - centerY;
-      const streakLength = warpFactor * 15;
-      
-      ctx.strokeStyle = this.color + '60';
-      ctx.lineWidth = this.size * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(this.x, this.y);
-      ctx.lineTo(
-        this.x + (dx / this.distance) * streakLength,
-        this.y + (dy / this.distance) * streakLength
-      );
-      ctx.stroke();
-    }
     
     ctx.restore();
   }
@@ -191,8 +157,9 @@ export function Galaxy({
 }) {
   // Convert speed prop to rotation: speed 0.2 = gentle cosmic drift
   const rotationSpeed = speed * 0.0005;
-  const starCount = Math.floor(300 * density);
-  const nebulaCount = Math.floor(3 * density);
+  // OPTIMIZED: Reduced from 300 to 120 stars for better performance
+  const starCount = Math.floor(120 * density);
+  const nebulaCount = Math.floor(2 * density);
   
   const canvasRef = useRef(null);
   const starsRef = useRef([]);
@@ -240,16 +207,8 @@ export function Galaxy({
       // Static warp factor of 1 (no speed changes)
       const warpFactor = 1;
 
-      // Clear with deep space gradient
-      const gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 0,
-        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height)
-      );
-      gradient.addColorStop(0, '#0f0a1e'); // Deep purple-black center
-      gradient.addColorStop(0.5, '#070510'); // Dark purple
-      gradient.addColorStop(1, '#020617'); // cyber-darker edge
-      
-      ctx.fillStyle = gradient;
+      // OPTIMIZED: Solid color instead of gradient for better performance
+      ctx.fillStyle = '#020617';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Draw nebulae
