@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAccount } from 'wagmi';
+import React, { useState, useEffect } from 'react';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Info, Coins, Zap, Fingerprint, ChevronDown, ChevronUp } from 'lucide-react';
 import { PachinkoGame } from './components/PachinkoGame.jsx';
@@ -7,18 +7,37 @@ import { SettlementModal } from './components/SettlementModal.jsx';
 import { ContractTester } from './components/ContractTester.jsx';
 import { useYieldBallClass, formatAddress, getMockClass } from './hooks/useEnsIdentity.js';
 import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
+import { VAULT_ADDRESS, VAULT_ABI, TARGET_CHAIN_ID } from './config/wagmi.js';
 import { Galaxy } from './components/ui/Galaxy.jsx';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
 import StarCursor from './components/ui/StarCursor.jsx';
 
 function App() {
-  const { isConnected, address } = useAccount();
+  const { isConnected, address, chainId } = useAccount();
   const { ensName, ensAvatar, yieldballClass, ballConfig, isLoading } = useYieldBallClass();
+  const { switchChain } = useSwitchChain();
   
   // Game state
   const [isPlaying, setIsPlaying] = useState(false);
   const [settlement, setSettlement] = useState(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [isDepositLoading, setIsDepositLoading] = useState(false);
+
+  // Deposit transaction hooks
+  const { 
+    writeContract, 
+    data: depositTxHash, 
+    isPending: isDepositPending,
+    error: depositError,
+  } = useWriteContract();
+
+  // Wait for deposit transaction confirmation
+  const { 
+    isLoading: isDepositConfirming, 
+    isSuccess: isDepositSuccess,
+  } = useWaitForTransactionReceipt({
+    hash: depositTxHash,
+  });
 
   // Check if we're on the test route
   const isTestRoute = window.location.pathname === '/test' || window.location.search.includes('test=true');
@@ -27,9 +46,48 @@ function App() {
   const effectiveClass = yieldballClass !== 'default' ? yieldballClass : getMockClass(address);
   const effectiveBallConfig = BALL_CONFIGS[effectiveClass] || BALL_CONFIGS.default;
 
-  const handleStartGame = () => {
-    setIsPlaying(true);
+  // Transaction Gate: Only start game after deposit is confirmed
+  useEffect(() => {
+    if (isDepositSuccess) {
+      console.log('%c✅ Deposit confirmed on Base Sepolia! Unlocking game...', 'color: #22c55e; font-weight: bold;');
+      setIsPlaying(true);
+      setIsDepositLoading(false);
+    }
+  }, [isDepositSuccess]);
+
+  const handleStartGame = async () => {
+    // DO NOT start game immediately - trigger deposit transaction first
+    setIsDepositLoading(true);
     setSettlement(null);
+    
+    try {
+      // Check if on correct chain
+      if (chainId !== TARGET_CHAIN_ID) {
+        console.log('🔄 Switching to Base Sepolia...');
+        try {
+          await switchChain({ chainId: TARGET_CHAIN_ID });
+        } catch (err) {
+          console.error('Failed to switch chain:', err);
+          setIsDepositLoading(false);
+          return;
+        }
+      }
+
+      console.log('%c💰 Calling Vault deposit(100 USDC)...', 'color: #fbbf24; font-weight: bold;');
+      
+      // Call vault deposit function with 100 USDC (100000000 = 100 * 10^6)
+      writeContract({
+        address: VAULT_ADDRESS,
+        abi: VAULT_ABI,
+        functionName: 'deposit',
+        args: [BigInt(100000000)],
+        chainId: TARGET_CHAIN_ID,
+        gas: 150000n,
+      });
+    } catch (error) {
+      console.error('Deposit failed:', error);
+      setIsDepositLoading(false);
+    }
   };
 
   const handleSettlement = (settlementData) => {
@@ -296,15 +354,28 @@ function App() {
               </div>
             </div>
 
-            {/* Start Button */}
-            <div className="flex justify-center">
+            {/* Start Button with Transaction Gate */}
+            <div className="flex flex-col items-center gap-3">
+              {/* Loading Message */}
+              {(isDepositPending || isDepositConfirming) && (
+                <ShinyText variant="cyan" speed="fast" className="text-sm">
+                  {isDepositPending ? 'Confirm transaction in wallet...' : 'Staking on Base Sepolia...'}
+                </ShinyText>
+              )}
+              
+              {/* Error Message */}
+              {depositError && (
+                <p className="text-red-400 text-sm font-mono">Transaction failed. Please try again.</p>
+              )}
+              
               {isConnected ? (
                 <ShinyButton
                   onClick={handleStartGame}
                   variant="purple"
                   className="text-lg"
+                  disabled={isDepositLoading || isDepositPending || isDepositConfirming}
                 >
-                  DEPOSIT 100 USDC & PLAY
+                  {(isDepositPending || isDepositConfirming) ? 'STAKING ON BASE SEPOLIA...' : 'DEPOSIT 100 USDC & PLAY'}
                 </ShinyButton>
               ) : (
                 <div className="text-center">

@@ -80,13 +80,14 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
       
       console.log(`%c🎮 Player Class: ${playerClass.toUpperCase()}`, 
         'color: #8b5cf6; font-weight: bold; font-size: 16px;');
-      console.log('%c💰 Calling Vault deposit()...', 'color: #fbbf24; font-weight: bold;');
+      console.log('%c💰 Calling Vault deposit(100 USDC)...', 'color: #fbbf24; font-weight: bold;');
       
-      // Call vault deposit function (payable, no args)
+      // Call vault deposit function with 100 USDC (100000000 = 100 * 10^6)
       writeContract({
         address: VAULT_ADDRESS,
         abi: VAULT_ABI,
         functionName: 'deposit',
+        args: [BigInt(100000000)],
         chainId: TARGET_CHAIN_ID,
         gas: 150000n,
       });
@@ -158,7 +159,7 @@ export function VaultPanel({ onDeposit, isDeposited, isConnected }) {
       {(isWritePending || isConfirming) && (
         <div className="mb-4 text-center">
           <ShinyText variant="cyan" speed="fast" className="text-sm">
-            {isWritePending ? 'Confirm in Wallet...' : 'Authorizing Arcade Session on Base Sepolia...'}
+            {isWritePending ? 'Confirm in Wallet...' : 'Staking on Base Sepolia...'}
           </ShinyText>
         </div>
       )}

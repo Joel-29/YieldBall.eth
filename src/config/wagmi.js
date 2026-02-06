@@ -35,11 +35,11 @@ export const USDC_ADDRESS_BASE_SEPOLIA =
 
 // YieldBall Vault / Game logic contract (Game Gate)
 export const VAULT_ADDRESS =
-  '0x51b442D4e65e8a45154eD86B7fdB54C24aC092aA';
+  '0xaaD3915dB9287496cdfa67FAB34056Fe556D5A9a';
 
 // YieldBall Game Contract
 export const GAME_CONTRACT_ADDRESS =
-  '0x51b442D4e65e8a45154eD86B7fdB54C24aC092aA';
+  '0xaaD3915dB9287496cdfa67FAB34056Fe556D5A9a';
 
 // ============================================================
 // YIELDBALL ERC-20 TOKEN
@@ -80,7 +80,7 @@ export const VAULT_ABI = [
     name: 'deposit',
     type: 'function',
     stateMutability: 'payable',
-    inputs: [],
+    inputs: [{ name: 'amount', type: 'uint256', internalType: 'uint256' }],
     outputs: [],
   },
   {
@@ -88,8 +88,8 @@ export const VAULT_ABI = [
     type: 'function',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'principal', type: 'uint256' },
-      { name: 'yield', type: 'uint256' },
+      { name: 'principal', type: 'uint256', internalType: 'uint256' },
+      { name: 'yield', type: 'uint256', internalType: 'uint256' },
     ],
     outputs: [],
   },
