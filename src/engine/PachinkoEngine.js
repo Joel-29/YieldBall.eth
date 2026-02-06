@@ -148,9 +148,9 @@ export class PachinkoEngine {
       velocityIterations: 6,
     });
     this.engine.gravity.y = 1;
-    // ARCADE NORMAL: 0.0015 gravity scale for calibrated gameplay
+    // HIGH-VELOCITY: 0.002 gravity scale for faster arcade gameplay
     // ENS Degen class gets 1.2x gravity multiplier!
-    this.engine.gravity.scale = 0.0015 * this.speedMultiplier;
+    this.engine.gravity.scale = 0.002 * this.speedMultiplier;
 
     // 2. Create Renderer with TRANSPARENT background for animated grid visibility
     this.render = Render.create({
@@ -792,7 +792,7 @@ export class PachinkoEngine {
     
     // Update gravity for ENS speed multiplier
     if (this.engine) {
-      this.engine.gravity.scale = 0.0015 * this.speedMultiplier;
+      this.engine.gravity.scale = 0.002 * this.speedMultiplier;
     }
     
     console.log(`%c🔗 ENS Class set to: ${ensClass} (Speed: ${this.speedMultiplier}x)`, 'color: #8b5cf6;');
