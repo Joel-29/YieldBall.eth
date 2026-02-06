@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useWalletClient, usePublicClient } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Info, Coins, Zap, Fingerprint, ChevronDown, ChevronUp } from 'lucide-react';
 import { PachinkoGame } from './components/PachinkoGame.jsx';
@@ -10,17 +10,21 @@ import { BALL_CONFIGS } from './engine/PachinkoEngine.js';
 import { VAULT_ADDRESS, VAULT_ABI, TARGET_CHAIN_ID } from './config/wagmi.js';
 import { Galaxy } from './components/ui/Galaxy.jsx';
 import { ShinyText, ShinyButton, GlassmorphicCard } from './components/ui/ShinyText.jsx';
+import { initializeYellowNetwork, createGameSession } from './utils/yellowNetwork.js';
 
 function App() {
   const { isConnected, address, chainId } = useAccount();
   const { ensName, ensAvatar, yieldballClass, ballConfig, isLoading } = useYieldBallClass();
   const { switchChain } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   
   // Game state
   const [isPlaying, setIsPlaying] = useState(false);
   const [settlement, setSettlement] = useState(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [isDepositLoading, setIsDepositLoading] = useState(false);
+  const [yellowInitialized, setYellowInitialized] = useState(false);
 
   // Deposit transaction hooks
   const { 
@@ -54,6 +58,22 @@ function App() {
     }
   }, [isDepositSuccess]);
 
+  // Initialize Yellow Network when wallet connects
+  useEffect(() => {
+    if (isConnected && address && walletClient && publicClient && !yellowInitialized) {
+      console.log('%c🟡 Initializing Yellow Network SDK...', 'color: #fbbf24; font-weight: bold;');
+      initializeYellowNetwork(walletClient, publicClient, chainId)
+        .then(() => {
+          setYellowInitialized(true);
+          console.log('%c✅ Yellow Network ready for state channels', 'color: #22c55e; font-weight: bold;');
+        })
+        .catch(err => {
+          console.error('⚠️ Yellow Network init failed, running in simulation mode:', err);
+          setYellowInitialized(true); // Still allow gameplay
+        });
+    }
+  }, [isConnected, address, walletClient, publicClient, chainId, yellowInitialized]);
+
   const handleStartGame = async () => {
     // DO NOT start game immediately - trigger deposit transaction first
     setIsDepositLoading(true);
@@ -71,6 +91,10 @@ function App() {
           return;
         }
       }
+
+      // Create Yellow Network state channel before deposit
+      console.log('%c🟡 Creating Yellow Network state channel...', 'color: #fbbf24; font-weight: bold;');
+      await createGameSession(address, 100); // 100 USDC deposit
 
       console.log('%c💰 Calling Vault deposit(100 USDC)...', 'color: #fbbf24; font-weight: bold;');
       
